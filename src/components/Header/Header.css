@@ -1,0 +1,83 @@
+.header {
+  padding: 10px;
+  text-align: center;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.headerRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.profile {
+  flex: 1;
+}
+.logo {
+  width: 120px;
+  flex: 3;
+  position: relative;
+}
+.logo img {
+  width: 120px;
+}
+.headerRow2 {
+  justify-content: center;
+}
+.balance {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+
+  background: linear-gradient(360deg, #f1d781 -1.72%, #5c5231 98.28%),
+    linear-gradient(355.58deg, #f9d663 11.33%, #ffe99f 94.62%),
+    radial-gradient(
+      52.53% 99.05% at 47.47% 101.69%,
+      #ffffff 0%,
+      rgba(147, 125, 36, 0) 100%
+    );
+
+  padding: 2px 5px;
+  border-radius: 20px;
+}
+.balanceImg {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+}
+.balanceImg img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.balanceText {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: start;
+
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 8px;
+  line-height: 100%;
+
+  color: #d09921;
+}
+.balanceAmount {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 100%;
+
+  color: #8e6200;
+  text-align: left;
+}

@@ -1,0 +1,17 @@
+#root {
+  max-width: 720px;
+  width: 100%;
+  min-width: 325px;
+  margin: 0 auto;
+  text-align: center;
+}
+.app {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  height: 100vh;
+  background: url("./assets/img/Background.png") no-repeat center center;
+  background-size: cover;
+  color: white;
+  font-family: Arial, sans-serif;
+}

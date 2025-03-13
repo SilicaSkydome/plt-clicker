@@ -1,0 +1,51 @@
+.nav-menu {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px;
+  margin: 20px 10px;
+
+  background: radial-gradient(
+    72.1% 107.67% at 55.43% 29.25%,
+    #6d6147 0%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  height: 50px;
+
+  gap: 5px;
+
+  border-radius: 50px;
+
+  position: fixed; /* Фиксируем навигацию внизу */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10; /* Убеждаемся, что навигация поверх всего */
+}
+.nav-menu a {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  color: white;
+  font-size: 1.2em;
+  text-decoration: none;
+
+  line-height: 50px;
+
+  font-family: "Le Major", "Forum";
+
+  font-weight: 400;
+  font-size: 1em;
+}
+.nav-menu a.active {
+  background: linear-gradient(360deg, #f1d781 -1.72%, #5c5231 98.28%),
+    linear-gradient(355.58deg, #f9d663 11.33%, #b48d0a 94.62%),
+    radial-gradient(
+      52.53% 99.05% at 47.47% 101.69%,
+      #ffffff 0%,
+      rgba(147, 125, 36, 0) 100%
+    );
+  border: 2px solid #f9d663;
+
+  border-radius: 50px;
+}
