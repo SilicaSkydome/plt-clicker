@@ -1,0 +1,104 @@
+.invPage {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: center;
+
+  position: relative;
+  margin-top: 20px;
+}
+.inviteSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  background: #212324;
+
+  border: 1px solid;
+
+  border-image-source: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 2.78%,
+    #767041 50.42%,
+    rgba(102, 102, 102, 0) 100%
+  );
+  border-image-slice: 1;
+
+  padding: 20px 0;
+
+  width: 90%;
+}
+.inviteSection h1 {
+  font-family: "Le Major", "Forum";
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 150%;
+  text-align: center;
+  text-transform: capitalize;
+
+  color: #d7b877;
+  margin: 0;
+}
+.inviteSection h2 {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 150%;
+  text-align: center;
+  text-transform: capitalize;
+
+  color: #d7b877;
+  margin: 0;
+}
+.inviteSection p {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 190%;
+  letter-spacing: -0.6%;
+  text-align: center;
+
+  color: #5e5e5e;
+}
+.inviteSection input {
+  width: 240px;
+  height: 40px;
+  border-width: 1px;
+  border-radius: 4px;
+
+  border: 1px solid #535353;
+  background: #1f1f19;
+}
+.inviteSection input:focus {
+  outline: none;
+}
+.inviteSection button {
+  width: 240px;
+  height: 40px;
+  border-radius: 30px;
+  padding-right: 20px;
+  padding-left: 20px;
+
+  background: linear-gradient(360deg, #f1d781 -1.72%, #5c5231 98.28%),
+    linear-gradient(355.58deg, #f9d663 11.33%, #b48d0a 94.62%),
+    radial-gradient(
+      52.53% 99.05% at 47.47% 101.69%,
+      #ffffff 0%,
+      rgba(147, 125, 36, 0) 100%
+    );
+
+  border: 1px solid #f9d663;
+}
+.inviteSection div {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 100%;
+  text-align: center;
+  text-decoration: underline;
+  text-decoration-style: solid;
+
+  color: #d7b877;
+}

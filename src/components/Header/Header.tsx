@@ -26,10 +26,7 @@ function Header({ balance }: HeaderProps) {
           </div>
         </div>
       </div>
-      <div className="headerRow headerRow2">
-        <div className="text">Until the next sea is left:</div>
-        <div className="progressBar"></div>
-      </div>
+      <div className="headerRow headerRow2"></div>
     </div>
   );
 }

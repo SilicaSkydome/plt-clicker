@@ -232,7 +232,13 @@ function Game({ setBalance }: GameProps) {
     };
   }, [setBalance]); // Убрали score из зависимостей
 
-  return <div ref={gameRef} className="game-container" />;
+  return (
+    <>
+      <div className="text">Until the next sea is left:</div>
+      <div className="progressBar"></div>
+      <div ref={gameRef} className="game-container" />
+    </>
+  );
 }
 
 export default Game;
