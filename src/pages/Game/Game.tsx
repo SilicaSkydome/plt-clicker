@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import React from "react";
-import chest from "../../assets/img/chest.png";
+import chest from "../../assets/img/Chest.png";
 // import boat from "../../assets/img/boat.png";
 import "./Game.css";
 
