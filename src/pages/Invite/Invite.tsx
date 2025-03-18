@@ -1,5 +1,5 @@
 import React from "react";
-import "./Invite.css";
+import "./InvitePage.css";
 
 function Invite() {
   return (

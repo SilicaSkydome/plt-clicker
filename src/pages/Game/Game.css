@@ -1,7 +1,18 @@
 .game-container {
+  position: absolute;
   width: 100%;
 
   max-width: 720px; /* Ограничиваем максимальную ширину */
   aspect-ratio: 9 / 16; /* Сохраняем пропорции 9:16 */
   max-height: 500px; /* Ограничиваем высоту с учетом хедера и навигации */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.game-container canvas {
+  margin: 0 !important;
 }

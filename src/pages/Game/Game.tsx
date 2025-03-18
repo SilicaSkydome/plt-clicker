@@ -15,8 +15,8 @@ function Game({ setBalance }: GameProps) {
   const [score, setScore] = useState(0);
 
   useEffect(() => {
-    const baseWidth = 360;
-    const baseHeight = 540;
+    const baseWidth = window.innerWidth;
+    const baseHeight = window.innerHeight - 150;
     const aspectRatio = baseHeight / baseWidth;
 
     const containerWidth = window.innerWidth;
@@ -34,6 +34,7 @@ function Game({ setBalance }: GameProps) {
       type: Phaser.AUTO,
       width: baseWidth,
       height: baseHeight,
+
       parent: gameRef.current!,
       transparent: true,
       scale: {
@@ -116,7 +117,7 @@ function Game({ setBalance }: GameProps) {
 
       scene.tweens.add({
         targets: chest,
-        scale: 1,
+        scale: 4,
         duration: 500,
         ease: "Bounce.easeOut",
       });
