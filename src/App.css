@@ -15,8 +15,8 @@
   font-family: Arial, sans-serif;
 }
 .game-bg {
-  background: url("./assets/img/Background.png") no-repeat center center;
-  background-size: cover;
+  background: url("./assets/img/bgPlaceholder.png") center center;
+  background-size: contain;
 }
 .default-bg {
   background: #1e1e1e;
