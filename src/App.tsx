@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,6 +13,7 @@ import "./App.css";
 import Header from "./components/Header/Header";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { useState } from "react";
+// import { useLaunchParams } from "@telegram-apps/sdk-react";
 
 interface appContentProps {
   setBalance: (balance: number) => void;
@@ -22,6 +23,17 @@ interface appContentProps {
 // Компонент для обработки фона
 const AppContent = ({ balance, setBalance }: appContentProps) => {
   const location = useLocation();
+  // const lp = useLaunchParams();
+
+  // useEffect(() => {
+  //   if (lp) {
+  //     const user = lp.initData?.user;
+  //     if (user) {
+  //       console.log("Пользователь:", user);
+  //       // Данные: { id, first_name, last_name, username, photo_url }
+  //     }
+  //   }
+  // }, [lp]);
 
   const getBackgroundClass = () => {
     switch (location.pathname) {
