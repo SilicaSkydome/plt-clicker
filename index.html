@@ -9,5 +9,27 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script
+      async
+      src="https://f291-37-26-135-104.ngrok-free.app"
+      data-telegram-login="pltc_bot"
+      data-size="medium"
+      data-onauth="onTelegramAuth(user)"
+      data-request-access="write"
+    ></script>
+    <script type="text/javascript">
+      function onTelegramAuth(user) {
+        console.log(
+          "Logged in as " +
+            user.first_name +
+            " " +
+            user.last_name +
+            " (" +
+            user.id +
+            (user.username ? ", @" + user.username : "") +
+            ")"
+        );
+      }
+    </script>
   </body>
 </html>
