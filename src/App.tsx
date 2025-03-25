@@ -13,7 +13,7 @@ import "./App.css";
 import Header from "./components/Header/Header";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { useState } from "react";
-// import { useLaunchParams } from "@telegram-apps/sdk-react";
+import GameWrapper from "./pages/Game/GameWrapper";
 
 interface appContentProps {
   setBalance: (balance: number) => void;
@@ -23,17 +23,6 @@ interface appContentProps {
 // Компонент для обработки фона
 const AppContent = ({ balance, setBalance }: appContentProps) => {
   const location = useLocation();
-  // const lp = useLaunchParams();
-
-  // useEffect(() => {
-  //   if (lp) {
-  //     const user = lp.initData?.user;
-  //     if (user) {
-  //       console.log("Пользователь:", user);
-  //       // Данные: { id, first_name, last_name, username, photo_url }
-  //     }
-  //   }
-  // }, [lp]);
 
   const getBackgroundClass = () => {
     switch (location.pathname) {
@@ -48,7 +37,7 @@ const AppContent = ({ balance, setBalance }: appContentProps) => {
     <div className={`app ${getBackgroundClass()}`}>
       <Header balance={balance} />
       <Routes>
-        <Route path="/" element={<Game setBalance={setBalance} />} />
+        <Route path="/" element={<GameWrapper setBalance={setBalance} />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/invite" element={<Invite />} />
         <Route path="/earn" element={<Earn />} />

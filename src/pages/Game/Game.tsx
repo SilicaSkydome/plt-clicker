@@ -5,11 +5,12 @@ import chestPlaceholder from "../../assets/img/chestPlaceholder.webp";
 import shipPlaceholder from "../../assets/img/shipPlaceholder.png";
 import "./Game.css";
 
-interface GameProps {
+type GameProps = {
   setBalance: (value: number) => void;
-}
+  telegramId: string;
+};
 
-function Game({ setBalance }: GameProps) {
+function Game({ setBalance, telegramId }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [score, setScore] = useState(0);
