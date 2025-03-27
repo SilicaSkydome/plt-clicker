@@ -7,10 +7,9 @@ import "./Game.css";
 
 type GameProps = {
   setBalance: (value: number) => void;
-  telegramId: string;
 };
 
-function Game({ setBalance, telegramId }: GameProps) {
+function Game({ setBalance }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [score, setScore] = useState(0);

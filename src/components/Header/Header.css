@@ -16,7 +16,37 @@
 }
 .profile {
   flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
 }
+.profilePicture {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    #fff09a 2.78%,
+    #767041 50.42%,
+    #fff09a 100%
+  );
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  margin-left: 10px;
+
+  cursor: pointer;
+}
+.profilePicture img {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
 .logo {
   width: 120px;
   flex: 3;
@@ -81,4 +111,155 @@
 
   color: #8e6200;
   text-align: left;
+}
+.profileModal {
+  position: absolute;
+  width: 90%;
+  height: 70%;
+
+  background: #212324;
+  bottom: 0;
+  border-radius: 15px 15px 0 0;
+
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 25px;
+
+  z-index: 100;
+}
+.profileModal::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 70px;
+  height: 2px;
+  border-radius: 2px;
+
+  background-color: #ffe09d;
+  z-index: 110;
+}
+.profileModal h1 {
+  font-family: "Le Major";
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 150%;
+  text-align: center;
+  text-transform: capitalize;
+
+  color: #d7b877;
+}
+.profileModal .avatar {
+  width: 70px;
+  height: 70px;
+
+  background: linear-gradient(
+    90deg,
+    #fff09a 2.78%,
+    #767041 50.42%,
+    #fff09a 100%
+  );
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+}
+.profileModal .avatar img {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+}
+.profileModal h2 {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 150%;
+  text-align: center;
+
+  color: #d7b877;
+}
+.profileModalRank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.profileModalRank p {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 100%;
+
+  color: #5e5e5e;
+}
+.profileModalRank h3 {
+  position: relative;
+  font-family: "Le Major";
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 100%;
+  line-height: 35px;
+  width: 100px;
+
+  margin-top: 0;
+
+  color: #ffffffcc;
+
+  background: #2d2d2d;
+  clip-path: polygon(10% 0, 90% 0, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+}
+.profileModalRank h3::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100%;
+
+  z-index: 10;
+}
+.profileModalRank h3::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 80%;
+
+  background: radial-gradient(
+    44.95% 84.76% at 50% -1.68%,
+    #857830 0%,
+    rgba(147, 125, 36, 0) 100%
+  );
+
+  z-index: 10;
+}
+.seaCount {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 150%;
+  text-align: center;
+
+  color: #5e5e5e;
+}
+.tillNext {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 100%;
+  text-align: center;
+
+  margin-top: 10px;
+
+  color: #ffffff;
+}
+.isOpen {
+  display: flex !important;
 }
