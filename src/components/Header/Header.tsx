@@ -46,7 +46,7 @@ function Header({ balance, user }: HeaderProps) {
           </div>
           <div className="balanceContent">
             <div className="balanceText">Balance:</div>
-            <div className="balanceAmount">{balance}</div>
+            <div className="balanceAmount">{balance.toFixed(2)}</div>
           </div>
         </div>
       </div>

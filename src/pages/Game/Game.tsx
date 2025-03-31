@@ -4,6 +4,7 @@ import React from "react";
 import chestPlaceholder from "../../assets/img/chestPlaceholder.webp";
 import shipPlaceholder from "../../assets/img/shipPlaceholder.png";
 import "./Game.css";
+import ProgressBar from "../../components/Common/ProgressBar/ProgressBar";
 
 type GameProps = {
   setBalance: (value: number) => void;
@@ -72,6 +73,7 @@ function Game({ setBalance }: GameProps) {
       // Корабль
       const boat = this.add
         .image(baseWidth / 2, baseHeight / 2, "boat")
+        .setInteractive()
         .setDepth(2) as Phaser.GameObjects.Image;
 
       const boatTexture = this.textures
@@ -95,6 +97,37 @@ function Game({ setBalance }: GameProps) {
         yoyo: true,
         repeat: -1,
         ease: "Sine.easeInOut",
+      });
+
+      boat.on("pointerdown", () => {
+        setScore((prev) => {
+          const newScore = prev + 0.01;
+          setBalance(newScore);
+
+          // Добавляем анимацию текста с очками
+          const points = 0.01;
+          const baseFontSize = 16;
+          const fontSize = baseFontSize * scaleFactor;
+          const plusText = currentScene!.add
+            .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
+              fontSize: `${fontSize}px`,
+              color: "#ffd700",
+            })
+            .setOrigin(0.5)
+            .setDepth(4)
+            .setActive(true) as Phaser.GameObjects.Text;
+
+          const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
+          currentScene!.tweens.add({
+            targets: plusText,
+            y: targetY,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => plusText.destroy(),
+          });
+
+          return newScore;
+        });
       });
 
       for (let i = 0; i < 3; i++) {
@@ -148,10 +181,9 @@ function Game({ setBalance }: GameProps) {
         .sprite(x, y, "chest")
         .setInteractive()
         .setScale(0)
-        .setDepth(3) // Увеличили depth с 1 до 3, чтобы сундуки были поверх корабля
+        .setDepth(3)
         .setActive(true) as Phaser.GameObjects.Sprite;
 
-      // Рассчитываем масштаб сундука
       const chestTexture = scene.textures
         .get("chest")
         .getSourceImage() as HTMLImageElement;
@@ -167,7 +199,7 @@ function Game({ setBalance }: GameProps) {
 
       const baseWaveRadius = 10;
       const waveRadius = baseWaveRadius * scaleFactor;
-      const wave = scene.add.graphics().setPosition(x, y).setDepth(0); // Волны остаются на нижнем слое
+      const wave = scene.add.graphics().setPosition(x, y).setDepth(0);
       wave.lineStyle(3, 0x00ffff, 0.8);
       wave.strokeCircle(0, 0, waveRadius);
 
@@ -212,7 +244,7 @@ function Game({ setBalance }: GameProps) {
             color: "#ffd700",
           })
           .setOrigin(0.5)
-          .setDepth(4) // Текст очков на самом верхнем слое
+          .setDepth(4)
           .setActive(true) as Phaser.GameObjects.Text;
 
         const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
@@ -239,7 +271,7 @@ function Game({ setBalance }: GameProps) {
           entry.wave.setVisible(true);
           entry.chest.setActive(true);
           entry.wave.setActive(true);
-          scene.children.bringToTop(entry.chest); // Поднимаем сундук на верхний слой
+          scene.children.bringToTop(entry.chest);
           scene.children.bringToTop(entry.wave);
         });
 
@@ -285,8 +317,7 @@ function Game({ setBalance }: GameProps) {
   return (
     <>
       <div className="text">Until the next sea is left:</div>
-      <div className="progressBar"></div>
-      <div>Balance: {score}</div>
+      <ProgressBar />
       <div ref={gameRef} className="game-container" />
     </>
   );

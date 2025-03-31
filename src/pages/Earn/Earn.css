@@ -71,6 +71,14 @@
   align-items: stretch;
   width: 100%;
 }
+.questContent {
+  display: flex;
+  flex-direction: row;
+  justify-content: start;
+  margin-left: 10px;
+  align-items: center;
+  gap: 10px;
+}
 .questInfo {
   display: flex;
   flex-direction: column;
@@ -81,6 +89,8 @@
   padding: 0 10px;
 }
 .questInfo h3 {
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
   margin: 0;
 }
 .questInfo p {

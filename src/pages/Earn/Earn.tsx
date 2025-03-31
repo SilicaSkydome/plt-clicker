@@ -3,7 +3,7 @@ import "./Earn.css";
 
 const tasks = [
   {
-    icon: "",
+    icon: "./assets/Quest1.png",
     title: "Subscribe to Telegram",
     description: "+15 PLGold",
     button: "",
@@ -11,7 +11,7 @@ const tasks = [
     completed: false,
   },
   {
-    icon: "",
+    icon: "./assets/Quest2.png",
     title: "Invite 5 friends",
     description: "15 PLGold",
     button: "",
@@ -19,7 +19,7 @@ const tasks = [
     completed: false,
   },
   {
-    icon: "",
+    icon: "./assets/Quest3.png",
     title: "Join instagram",
     description: "15 PLGold",
     button: "",
@@ -40,12 +40,14 @@ function Earn() {
         <div className="quests">
           {tasks.map((task, index) => (
             <div key={index} className="quest">
-              <div className="questIcon">
-                <img src={task.icon} alt="icon" />
-              </div>
-              <div className="questInfo">
-                <h3>{task.title}</h3>
-                <p>{task.description}</p>
+              <div className="questContent">
+                <div className="questIcon">
+                  <img src={task.icon} alt="icon" />
+                </div>
+                <div className="questInfo">
+                  <h3>{task.title}</h3>
+                  <p>{task.description}</p>
+                </div>
               </div>
               <button className="questButton">+{task.points} PLGold</button>
             </div>
