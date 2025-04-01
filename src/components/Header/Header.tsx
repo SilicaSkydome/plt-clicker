@@ -1,7 +1,6 @@
 import React from "react";
 import "./Header.css";
 import Logo from "../../assets/Logo.png";
-import Icon from "../../assets/Icon.png";
 import Token from "../../assets/img/Token.png";
 import { useClickAway } from "@uidotdev/usehooks";
 
