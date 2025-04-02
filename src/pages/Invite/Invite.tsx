@@ -20,7 +20,7 @@ const Invite: React.FC = () => {
 
   // Генерация реферальной ссылки
   const generateReferralLink = (userId: number): string => {
-    const botUsername = "@pltc_bot"; // Замените на имя вашего бота
+    const botUsername = "pltc_bot"; // Замените на имя вашего бота
     return `https://t.me/${botUsername}?start=ref_${userId}`;
   };
 
