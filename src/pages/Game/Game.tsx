@@ -1,3 +1,4 @@
+// pages/Game/Game.tsx
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import React from "react";
@@ -6,14 +7,21 @@ import shipPlaceholder from "../../assets/img/shipPlaceholder.png";
 import "./Game.css";
 import ProgressBar from "../../components/Common/ProgressBar/ProgressBar";
 
-type GameProps = {
-  setBalance: (value: number) => void;
-};
+interface GameProps {
+  balance: number;
+  setBalance: (balance: number) => void;
+}
 
-function Game({ setBalance }: GameProps) {
+function Game({ balance, setBalance }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [score, setScore] = useState(0);
+
+  // Инициализация score из balance при монтировании
+  useEffect(() => {
+    console.log("Инициализация score из balance:", balance);
+    setScore(balance);
+  }, [balance]);
 
   useEffect(() => {
     const baseWidth = window.innerWidth;
@@ -70,7 +78,6 @@ function Game({ setBalance }: GameProps) {
     function create(this: Phaser.Scene) {
       currentScene = this;
 
-      // Корабль
       const boat = this.add
         .image(baseWidth / 2, baseHeight / 2, "boat")
         .setInteractive()
@@ -102,9 +109,9 @@ function Game({ setBalance }: GameProps) {
       boat.on("pointerdown", () => {
         setScore((prev) => {
           const newScore = prev + 0.01;
-          setBalance(newScore);
+          console.log("Обновление score и balance (boat):", newScore);
+          setBalance(newScore); // Обновляем balance напрямую
 
-          // Добавляем анимацию текста с очками
           const points = 0.01;
           const baseFontSize = 16;
           const fontSize = baseFontSize * scaleFactor;
@@ -228,13 +235,12 @@ function Game({ setBalance }: GameProps) {
 
       chest.on("pointerdown", () => {
         const points = Phaser.Math.Between(3, 10);
-        setTimeout(() => {
-          setScore((prev) => {
-            const newScore = prev + points;
-            setBalance(newScore);
-            return newScore;
-          });
-        }, 0);
+        setScore((prev) => {
+          const newScore = prev + points;
+          console.log("Обновление score и balance (chest):", newScore);
+          setBalance(newScore); // Обновляем balance напрямую
+          return newScore;
+        });
 
         const baseFontSize = 16;
         const fontSize = baseFontSize * scaleFactor;
@@ -312,7 +318,7 @@ function Game({ setBalance }: GameProps) {
         currentScene = null;
       }
     };
-  }, [setBalance]);
+  }, []);
 
   return (
     <>

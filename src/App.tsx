@@ -1,3 +1,4 @@
+// App.tsx
 import React, { useEffect, useState } from "react";
 import "./App.css";
 import {
@@ -15,10 +16,6 @@ import NavMenu from "./components/NavMenu/NavMenu";
 import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-interface appContentProps {
-  setBalance: (balance: number) => void;
-  balance: number;
-}
 interface userData {
   id: string;
   firstName: string;
@@ -27,15 +24,20 @@ interface userData {
   photoUrl: string;
 }
 
-const AppContent = ({ balance, setBalance }: appContentProps) => {
+interface AppContentProps {
+  user: userData;
+  isLoading: boolean;
+  balance: number;
+  setBalance: (balance: number) => void;
+}
+
+const AppContent = ({
+  user,
+  isLoading,
+  balance,
+  setBalance,
+}: AppContentProps) => {
   const location = useLocation();
-  const [user, setUser] = useState<userData>({
-    id: "",
-    firstName: "",
-    username: "",
-    lastInteraction: "",
-    photoUrl: "",
-  });
 
   const getBackgroundClass = () => {
     switch (location.pathname) {
@@ -46,67 +48,117 @@ const AppContent = ({ balance, setBalance }: appContentProps) => {
     }
   };
 
-  // Инициализация данных пользователя
-  useEffect(() => {
-    const app = (window as any).Telegram.WebApp;
-    if (app) {
-      app.ready();
-      const telegramUser = app.initDataUnsafe.user;
+  if (isLoading) {
+    return <div>Загрузка...</div>;
+  }
 
-      const userData = {
-        id: telegramUser.id.toString(),
-        firstName: telegramUser.first_name,
-        username: telegramUser.username || "",
-        lastInteraction: new Date().toISOString(),
-        photoUrl: telegramUser.photo_url || "",
-      };
-      setUser(userData);
-      getUserBalance(userData);
-    } else {
-      console.log("Telegram WebApp не доступен");
-    }
+  return (
+    <div className={`app ${getBackgroundClass()}`}>
+      <Header balance={balance} user={user} />
+      <Routes>
+        <Route
+          path="/"
+          element={<Game balance={balance} setBalance={setBalance} />}
+        />
+        <Route path="/stats" element={<Stats />} />
+        <Route path="/invite" element={<Invite />} />
+        <Route path="/earn" element={<Earn />} />
+      </Routes>
+      <NavMenu />
+    </div>
+  );
+};
+
+function App() {
+  const [user, setUser] = useState<userData>({
+    id: "",
+    firstName: "",
+    username: "",
+    lastInteraction: "",
+    photoUrl: "",
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [balance, setBalance] = useState<number>(0); // Устанавливаем начальное значение 0
+
+  useEffect(() => {
+    const initializeUser = async () => {
+      try {
+        const app = (window as any).Telegram.WebApp;
+        if (app) {
+          app.ready();
+          const telegramUser = app.initDataUnsafe.user;
+
+          if (!telegramUser) {
+            console.error("Telegram user data is not available");
+            setBalance(0);
+            setIsLoading(false);
+            return;
+          }
+
+          const userData = {
+            id: telegramUser.id.toString(),
+            firstName: telegramUser.first_name,
+            username: telegramUser.username || "",
+            lastInteraction: new Date().toISOString(),
+            photoUrl: telegramUser.photo_url || "",
+          };
+          console.log("Инициализация пользователя:", userData);
+          setUser(userData);
+          await getUserBalance(userData);
+        } else {
+          console.error("Telegram WebApp не доступен");
+          setBalance(0);
+        }
+      } catch (error) {
+        console.error("Ошибка при инициализации пользователя:", error);
+        setBalance(0);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeUser();
   }, []);
 
-  // Логирование данных после их обновления
   useEffect(() => {
     if (user.id) {
       console.log("Пользователь из Mini App (обновлённое состояние):", user);
     }
   }, [user]);
 
-  // Получение баланса из Firestore
   const getUserBalance = async (userData: userData) => {
-    const userDocRef = doc(db, "userData", userData.id);
-    const userDoc = await getDoc(userDocRef);
-    if (userDoc.exists()) {
-      const userDataFromDb = userDoc.data();
-      setBalance(userDataFromDb.balance);
-    } else {
-      console.log(
-        "Пользователь не найден в Firestore, создаем нового пользователя"
-      );
-      const newUser = {
-        id: userData.id,
-        firstName: userData.firstName,
-        username: userData.username,
-        lastInteraction: new Date().toISOString(),
-        photoUrl: userData.photoUrl,
-        balance: 0,
-      };
+    try {
+      const userDocRef = doc(db, "userData", userData.id);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const userDataFromDb = userDoc.data();
+        console.log("Данные пользователя из Firestore:", userDataFromDb);
+        setBalance(userDataFromDb.balance || 0); // Устанавливаем 0, если balance отсутствует
+      } else {
+        console.log(
+          "Пользователь не найден в Firestore, создаем нового пользователя"
+        );
+        const newUser = {
+          id: userData.id,
+          firstName: userData.firstName,
+          username: userData.username,
+          lastInteraction: new Date().toISOString(),
+          photoUrl: userData.photoUrl,
+          balance: 0,
+        };
 
-      try {
         await setDoc(userDocRef, newUser);
         console.log("Новый пользователь создан в Firestore");
         setBalance(0);
-      } catch (error) {
-        console.error("Ошибка при создании нового пользователя:", error);
       }
+    } catch (error) {
+      console.error("Ошибка при получении баланса из Firestore:", error);
+      setBalance(0);
     }
   };
 
-  // Обновление данных пользователя в Firestore через интервал
   useEffect(() => {
-    if (!user.id) return; // Если пользователь ещё не инициализирован, ничего не делаем
+    if (!user.id) return;
 
     const intervalId = setInterval(async () => {
       const userData = {
@@ -131,32 +183,19 @@ const AppContent = ({ balance, setBalance }: appContentProps) => {
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
-    }, 10000);
+    }, 3000);
 
-    // Очистка интервала при размонтировании компонента
     return () => clearInterval(intervalId);
-  }, [user, balance]); // Зависимости: user и balance
-
-  return (
-    <div className={`app ${getBackgroundClass()}`}>
-      <Header balance={balance} user={user} />
-      <Routes>
-        <Route path="/" element={<Game setBalance={setBalance} />} />
-        <Route path="/stats" element={<Stats />} />
-        <Route path="/invite" element={<Invite />} />
-        <Route path="/earn" element={<Earn />} />
-      </Routes>
-      <NavMenu />
-    </div>
-  );
-};
-
-function App() {
-  const [balance, setBalance] = useState(0);
+  }, [user, balance]);
 
   return (
     <Router>
-      <AppContent balance={balance} setBalance={setBalance} />
+      <AppContent
+        user={user}
+        isLoading={isLoading}
+        balance={balance}
+        setBalance={setBalance}
+      />
     </Router>
   );
 }

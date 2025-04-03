@@ -17,7 +17,7 @@ interface HeaderProps {
   user: userData | null;
 }
 
-function Header({ balance, user }: HeaderProps) {
+function Header({ user, balance }: HeaderProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const handleProfileClick = () => {
@@ -45,7 +45,9 @@ function Header({ balance, user }: HeaderProps) {
           </div>
           <div className="balanceContent">
             <div className="balanceText">Balance:</div>
-            <div className="balanceAmount">{balance.toFixed(2)}</div>
+            <div className="balanceAmount">
+              {balance !== null ? balance.toFixed(2) : "Загрузка..."}
+            </div>
           </div>
         </div>
       </div>
