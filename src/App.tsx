@@ -1,4 +1,3 @@
-// App.tsx
 import React, { useEffect, useState } from "react";
 import "./App.css";
 import {
@@ -15,20 +14,15 @@ import Header from "./components/Header/Header";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-
-interface userData {
-  id: string;
-  firstName: string;
-  username: string;
-  lastInteraction: string;
-  photoUrl: string;
-}
+import { Task, UserData } from "./Interfaces";
 
 interface AppContentProps {
-  user: userData;
+  user: UserData;
   isLoading: boolean;
   balance: number;
   setBalance: (balance: number) => void;
+  tasks: Task[];
+  setTasks: (tasks: Task[]) => void;
 }
 
 const AppContent = ({
@@ -36,6 +30,8 @@ const AppContent = ({
   isLoading,
   balance,
   setBalance,
+  tasks,
+  setTasks,
 }: AppContentProps) => {
   const location = useLocation();
 
@@ -62,7 +58,18 @@ const AppContent = ({
         />
         <Route path="/stats" element={<Stats />} />
         <Route path="/invite" element={<Invite />} />
-        <Route path="/earn" element={<Earn />} />
+        <Route
+          path="/earn"
+          element={
+            <Earn
+              user={user}
+              balance={balance}
+              setBalance={setBalance}
+              tasks={tasks}
+              setTasks={setTasks}
+            />
+          }
+        />
       </Routes>
       <NavMenu />
     </div>
@@ -70,15 +77,18 @@ const AppContent = ({
 };
 
 function App() {
-  const [user, setUser] = useState<userData>({
+  const [user, setUser] = useState<UserData>({
     id: "",
     firstName: "",
     username: "",
     lastInteraction: "",
     photoUrl: "",
+    balance: 0,
+    tasks: [],
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [balance, setBalance] = useState<number>(0); // Устанавливаем начальное значение 0
+  const [balance, setBalance] = useState<number>(0);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     const initializeUser = async () => {
@@ -91,6 +101,7 @@ function App() {
           if (!telegramUser) {
             console.error("Telegram user data is not available");
             setBalance(0);
+            setTasks([]);
             setIsLoading(false);
             return;
           }
@@ -101,17 +112,21 @@ function App() {
             username: telegramUser.username || "",
             lastInteraction: new Date().toISOString(),
             photoUrl: telegramUser.photo_url || "",
+            balance: 0,
+            tasks: [],
           };
           console.log("Инициализация пользователя:", userData);
           setUser(userData);
-          await getUserBalance(userData);
+          await getUserData(userData);
         } else {
           console.error("Telegram WebApp не доступен");
           setBalance(0);
+          setTasks([]);
         }
       } catch (error) {
         console.error("Ошибка при инициализации пользователя:", error);
         setBalance(0);
+        setTasks([]);
       } finally {
         setIsLoading(false);
       }
@@ -126,14 +141,16 @@ function App() {
     }
   }, [user]);
 
-  const getUserBalance = async (userData: userData) => {
+  const getUserData = async (userData: UserData) => {
     try {
       const userDocRef = doc(db, "userData", userData.id);
       const userDoc = await getDoc(userDocRef);
       if (userDoc.exists()) {
-        const userDataFromDb = userDoc.data();
+        const userDataFromDb = userDoc.data() as UserData;
         console.log("Данные пользователя из Firestore:", userDataFromDb);
-        setBalance(userDataFromDb.balance || 0); // Устанавливаем 0, если balance отсутствует
+        setBalance(userDataFromDb.balance || 0);
+        setUser((prev) => ({ ...prev, tasks: userDataFromDb.tasks || [] }));
+        setTasks([]); // Сбрасываем tasks, чтобы Earn.tsx мог их синхронизировать
       } else {
         console.log(
           "Пользователь не найден в Firestore, создаем нового пользователя"
@@ -145,15 +162,18 @@ function App() {
           lastInteraction: new Date().toISOString(),
           photoUrl: userData.photoUrl,
           balance: 0,
+          tasks: [],
         };
 
         await setDoc(userDocRef, newUser);
         console.log("Новый пользователь создан в Firestore");
         setBalance(0);
+        setTasks([]);
       }
     } catch (error) {
-      console.error("Ошибка при получении баланса из Firestore:", error);
+      console.error("Ошибка при получении данных из Firestore:", error);
       setBalance(0);
+      setTasks([]);
     }
   };
 
@@ -161,6 +181,9 @@ function App() {
     if (!user.id) return;
 
     const intervalId = setInterval(async () => {
+      // Исключаем поле action из tasks перед сохранением
+      const tasksToSave = tasks.map(({ action, ...rest }) => rest);
+
       const userData = {
         id: user.id,
         firstName: user.firstName,
@@ -168,6 +191,7 @@ function App() {
         lastInteraction: new Date().toISOString(),
         photoUrl: user.photoUrl,
         balance: balance,
+        tasks: tasksToSave, // Сохраняем только сериализуемые данные
       };
       console.log("Обновление данных пользователя:", userData);
 
@@ -177,6 +201,8 @@ function App() {
         if (userDoc.exists()) {
           await setDoc(userDocRef, userData, { merge: true });
           console.log("Данные пользователя обновлены в Firestore");
+          // Обновляем user.tasks после сохранения
+          setUser((prev) => ({ ...prev, tasks: tasksToSave }));
         } else {
           console.log("Пользователь не найден в Firestore");
         }
@@ -186,7 +212,7 @@ function App() {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [user, balance]);
+  }, [user, [user, balance, tasks]]);
 
   return (
     <Router>
@@ -195,6 +221,8 @@ function App() {
         isLoading={isLoading}
         balance={balance}
         setBalance={setBalance}
+        tasks={tasks}
+        setTasks={setTasks}
       />
     </Router>
   );
