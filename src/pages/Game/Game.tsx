@@ -17,9 +17,12 @@ function Game({ balance, setBalance }: GameProps) {
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [score, setScore] = useState(0);
 
-  // Инициализация score из balance при монтировании
+  // Получаем userId из Telegram Web App для уникальности данных
+
+  const telegramUserId = //@ts-ignore
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
+
   useEffect(() => {
-    console.log("Инициализация score из balance:", balance);
     setScore(balance);
   }, [balance]);
 
@@ -67,6 +70,7 @@ function Game({ balance, setBalance }: GameProps) {
       wave: Phaser.GameObjects.Graphics;
       x: number;
       y: number;
+      id: number;
     }> = [];
     let lastVisibleCount: number | null = null;
 
@@ -91,12 +95,6 @@ function Game({ balance, setBalance }: GameProps) {
       const boatScale = desiredBoatWidth / boatOriginalWidth;
       boat.setScale(boatScale);
 
-      console.log(
-        `Boat original width: ${boatOriginalWidth}, Scaled width: ${
-          boatOriginalWidth * boatScale
-        }, Scale: ${boatScale}`
-      );
-
       this.tweens.add({
         targets: boat,
         y: baseHeight / 2 + 10 * scaleFactor,
@@ -109,8 +107,7 @@ function Game({ balance, setBalance }: GameProps) {
       boat.on("pointerdown", () => {
         setScore((prev) => {
           const newScore = prev + 0.01;
-          console.log("Обновление score и balance (boat):", newScore);
-          setBalance(newScore); // Обновляем balance напрямую
+          setBalance(newScore);
 
           const points = 0.01;
           const baseFontSize = 16;
@@ -121,8 +118,7 @@ function Game({ balance, setBalance }: GameProps) {
               color: "#ffd700",
             })
             .setOrigin(0.5)
-            .setDepth(4)
-            .setActive(true) as Phaser.GameObjects.Text;
+            .setDepth(4);
 
           const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
           currentScene!.tweens.add({
@@ -137,6 +133,7 @@ function Game({ balance, setBalance }: GameProps) {
         });
       });
 
+      // Инициализация трех сундуков
       for (let i = 0; i < 3; i++) {
         let x, y;
         let attempts = 0;
@@ -152,7 +149,7 @@ function Game({ balance, setBalance }: GameProps) {
         );
 
         if (attempts < maxAttempts) {
-          spawnChest(this, x, y, scaleFactor);
+          initializeChest(this, x, y, scaleFactor, i);
         } else {
           console.warn(
             "Could not find a valid position for chest after max attempts."
@@ -178,11 +175,54 @@ function Game({ balance, setBalance }: GameProps) {
       return false;
     }
 
+    // Вспомогательные функции для работы с localStorage
+    function getLastSpawnTime(chestKey: string): number | null {
+      try {
+        const time = localStorage.getItem(chestKey);
+        return time ? parseInt(time) : null;
+      } catch (e) {
+        console.error("Ошибка доступа к localStorage:", e);
+        return null;
+      }
+    }
+
+    function setLastSpawnTime(chestKey: string, time: number) {
+      try {
+        localStorage.setItem(chestKey, time.toString());
+      } catch (e) {
+        console.error("Ошибка записи в localStorage:", e);
+      }
+    }
+
+    function initializeChest(
+      scene: Phaser.Scene,
+      x: number,
+      y: number,
+      scaleFactor: number,
+      id: number
+    ) {
+      const chestKey = `chest_${telegramUserId}_${id}_time`; // Уникальный ключ для пользователя
+      const lastSpawnTime = getLastSpawnTime(chestKey);
+      const currentTime = Date.now();
+      const respawnInterval = 10 * 60 * 1000; // 10 минут
+
+      if (!lastSpawnTime || currentTime - lastSpawnTime >= respawnInterval) {
+        spawnChest(scene, x, y, scaleFactor, id);
+      } else {
+        const timeLeft = respawnInterval - (currentTime - lastSpawnTime);
+        console.log(`Chest ${id} will respawn in ${timeLeft / 1000} seconds`);
+        scene.time.delayedCall(timeLeft, () => {
+          spawnChest(scene, x, y, scaleFactor, id);
+        });
+      }
+    }
+
     function spawnChest(
       scene: Phaser.Scene,
       x: number,
       y: number,
-      scaleFactor: number
+      scaleFactor: number,
+      id: number
     ) {
       const chest = scene.add
         .sprite(x, y, "chest")
@@ -230,15 +270,14 @@ function Game({ balance, setBalance }: GameProps) {
         ease: "Bounce.easeOut",
       });
 
-      const chestEntry = { chest, wave, x, y };
+      const chestEntry = { chest, wave, x, y, id };
       chestData.push(chestEntry);
 
       chest.on("pointerdown", () => {
         const points = Phaser.Math.Between(3, 10);
         setScore((prev) => {
           const newScore = prev + points;
-          console.log("Обновление score и balance (chest):", newScore);
-          setBalance(newScore); // Обновляем balance напрямую
+          setBalance(newScore);
           return newScore;
         });
 
@@ -251,7 +290,7 @@ function Game({ balance, setBalance }: GameProps) {
           })
           .setOrigin(0.5)
           .setDepth(4)
-          .setActive(true) as Phaser.GameObjects.Text;
+          .setActive(true);
 
         const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
         scene.tweens.add({
@@ -268,27 +307,16 @@ function Game({ balance, setBalance }: GameProps) {
         const index = chestData.indexOf(chestEntry);
         if (index !== -1) {
           chestData.splice(index, 1);
-        } else {
-          console.error("Chest not found in chestData!");
         }
 
-        chestData.forEach((entry) => {
-          entry.chest.setVisible(true);
-          entry.wave.setVisible(true);
-          entry.chest.setActive(true);
-          entry.wave.setActive(true);
-          scene.children.bringToTop(entry.chest);
-          scene.children.bringToTop(entry.wave);
-        });
+        // Сохраняем время уничтожения сундука
+        const chestKey = `chest_${telegramUserId}_${id}_time`;
+        setLastSpawnTime(chestKey, Date.now());
 
-        const respawnTime = Phaser.Math.Between(5000, 20000);
-        console.log("Respawn time:", respawnTime / 1000, "seconds");
-
+        // Планируем восстановление через 10 минут
+        const respawnTime = 10 * 60 * 1000;
         scene.time.delayedCall(respawnTime, () => {
-          console.log(`Timer triggered for respawn at ${x}, ${y}`);
-          console.log(`Scene is active: ${scene.scene.isActive()}`);
-          console.log(`Respawning chest at ${x}, ${y}`);
-          spawnChest(scene, x, y, scaleFactor);
+          spawnChest(scene, x, y, scaleFactor, id);
         });
       });
     }

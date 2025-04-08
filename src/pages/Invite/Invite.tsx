@@ -1,58 +1,93 @@
 import React, { useEffect, useState } from "react";
-
-// Extend the Window interface to include Telegram
-declare global {
-  interface Window {
-    Telegram: {
-      WebApp: {
-        ready: () => void;
-        initDataUnsafe: { user?: { id: number } };
-        openTelegramLink: (url: string) => void;
-      };
-    };
-  }
-}
+import { UserData, Referal } from "../../Interfaces"; // Исправляем Referral на Referal
+import { doc, getDoc } from "firebase/firestore";
 import "./InvitePage.css";
+import { db } from "../../../firebaseConfig";
 
-const Invite: React.FC = () => {
+interface InviteProps {
+  user: UserData;
+}
+
+interface ReferralWithDetails {
+  id: string; // Явно указываем id как обязательное поле
+  firstName?: string;
+  username?: string;
+}
+
+const Invite: React.FC<InviteProps> = ({ user }) => {
   const [referralLink, setReferralLink] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
+  const [referralsWithDetails, setReferralsWithDetails] = useState<
+    ReferralWithDetails[]
+  >([]);
+  const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
 
-  // Генерация реферальной ссылки
-  const generateReferralLink = (userId: number): string => {
+  const generateReferralLink = (userId: string): string => {
     const botUsername = "pltc_bot"; // Замените на имя вашего бота
     return `https://t.me/${botUsername}?start=ref_${userId}`;
   };
 
-  // Инициализация ссылки при загрузке
-  useEffect(() => {
-    const webApp = window.Telegram.WebApp;
-    webApp.ready();
-    const userId = webApp.initDataUnsafe.user?.id;
+  // Метод для получения данных рефералов из Firestore
+  const fetchReferralData = async (referrals: Referal[]) => {
+    setIsLoadingReferrals(true);
+    const referralsData: ReferralWithDetails[] = [];
+    for (const referral of referrals) {
+      try {
+        const userRef = doc(db, "userData", referral.id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data() as UserData;
+          referralsData.push({
+            id: referral.id,
+            firstName: userData.firstName,
+            username: userData.username,
+          });
+        } else {
+          // Если пользователь не найден, добавляем только ID
+          referralsData.push({ id: referral.id });
+        }
+      } catch (error) {
+        console.error(
+          `Ошибка при получении данных реферала ${referral.id}:`,
+          error
+        );
+        referralsData.push({ id: referral.id }); // В случае ошибки добавляем только ID
+      }
+    }
+    setReferralsWithDetails(referralsData);
+    setIsLoadingReferrals(false);
+  };
 
-    if (userId) {
-      const link = generateReferralLink(userId);
+  useEffect(() => {
+    if (user.id) {
+      const link = generateReferralLink(user.id);
       setReferralLink(link);
     } else {
       setReferralLink("Ошибка: пользователь не авторизован");
     }
-  }, []);
 
-  // Функция отправки ссылки через Telegram
+    // Загружаем данные рефералов при изменении user.referals
+    if (user.referals && user.referals.length > 0) {
+      fetchReferralData(user.referals);
+    } else {
+      setReferralsWithDetails([]);
+    }
+  }, [user]);
+
   const handleSend = () => {
     const shareText = "Присоединяйся к моей игре-кликеру!";
-    window.Telegram.WebApp.openTelegramLink(
+    //@ts-ignore
+    window.Telegram?.WebApp.openTelegramLink(
       `https://t.me/share/url?url=${encodeURIComponent(
         referralLink
       )}&text=${encodeURIComponent(shareText)}`
     );
   };
 
-  // Функция копирования ссылки в буфер обмена
   const handleCopy = () => {
     navigator.clipboard.writeText(referralLink).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000); // Сбрасываем через 2 секунды
+      setTimeout(() => setCopied(false), 2000);
     });
   };
 
@@ -79,8 +114,19 @@ const Invite: React.FC = () => {
       </div>
       <div className="friendsSection">
         <h4>Friends</h4>
-        {/* Здесь можно добавить список приглашенных друзей */}
-        <p>No friends invited yet.</p>
+        {isLoadingReferrals ? (
+          <p>Загрузка друзей...</p>
+        ) : referralsWithDetails.length > 0 ? (
+          <ul>
+            {referralsWithDetails.map((friend) => (
+              <li key={friend.id}>
+                {friend.username || friend.firstName || friend.id}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No friends invited yet.</p>
+        )}
       </div>
     </div>
   );

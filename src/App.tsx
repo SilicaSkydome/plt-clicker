@@ -13,8 +13,8 @@ import Earn from "./pages/Earn/Earn";
 import Header from "./components/Header/Header";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { db } from "../firebaseConfig";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { Task, UserData } from "./Interfaces";
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { Task, UserData, Referal } from "./Interfaces";
 
 interface AppContentProps {
   user: UserData;
@@ -57,7 +57,7 @@ const AppContent = ({
           element={<Game balance={balance} setBalance={setBalance} />}
         />
         <Route path="/stats" element={<Stats />} />
-        <Route path="/invite" element={<Invite />} />
+        <Route path="/invite" element={<Invite user={user} />} />
         <Route
           path="/earn"
           element={
@@ -85,6 +85,7 @@ function App() {
     photoUrl: "",
     balance: 0,
     tasks: [],
+    referals: [],
   });
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalance] = useState<number>(0);
@@ -94,34 +95,45 @@ function App() {
     const initializeUser = async () => {
       try {
         const app = (window as any).Telegram.WebApp;
-        if (app) {
-          app.ready();
-          const telegramUser = app.initDataUnsafe.user;
-
-          if (!telegramUser) {
-            console.error("Telegram user data is not available");
-            setBalance(0);
-            setTasks([]);
-            setIsLoading(false);
-            return;
-          }
-
-          const userData = {
-            id: telegramUser.id.toString(),
-            firstName: telegramUser.first_name,
-            username: telegramUser.username || "",
-            lastInteraction: new Date().toISOString(),
-            photoUrl: telegramUser.photo_url || "",
-            balance: 0,
-            tasks: [],
-          };
-          console.log("Инициализация пользователя:", userData);
-          setUser(userData);
-          await getUserData(userData);
-        } else {
+        if (!app) {
           console.error("Telegram WebApp не доступен");
           setBalance(0);
           setTasks([]);
+          setIsLoading(false);
+          return;
+        }
+
+        app.ready();
+        const telegramUser = app.initDataUnsafe.user;
+
+        if (!telegramUser) {
+          console.error("Telegram user data is not available");
+          setBalance(0);
+          setTasks([]);
+          setIsLoading(false);
+          return;
+        }
+
+        const userData: UserData = {
+          id: telegramUser.id.toString(),
+          firstName: telegramUser.first_name || "Unknown",
+          username: telegramUser.username || "",
+          lastInteraction: new Date().toISOString(),
+          photoUrl: telegramUser.photo_url || "",
+          balance: 0,
+          tasks: [],
+          referals: [],
+        };
+        setUser(userData);
+
+        // Получаем данные пользователя из Firestore
+        await getUserData(userData);
+
+        // Проверка реферальной ссылки
+        const startParam = app.initDataUnsafe.start_param;
+        if (startParam?.startsWith("ref_")) {
+          const referrerId = startParam.split("_")[1];
+          await handleReferral(telegramUser.id.toString(), referrerId);
         }
       } catch (error) {
         console.error("Ошибка при инициализации пользователя:", error);
@@ -135,12 +147,6 @@ function App() {
     initializeUser();
   }, []);
 
-  useEffect(() => {
-    if (user.id) {
-      console.log("Пользователь из Mini App (обновлённое состояние):", user);
-    }
-  }, [user]);
-
   const getUserData = async (userData: UserData) => {
     try {
       const userDocRef = doc(db, "userData", userData.id);
@@ -149,13 +155,15 @@ function App() {
         const userDataFromDb = userDoc.data() as UserData;
         console.log("Данные пользователя из Firestore:", userDataFromDb);
         setBalance(userDataFromDb.balance || 0);
-        setUser((prev) => ({ ...prev, tasks: userDataFromDb.tasks || [] }));
-        setTasks([]); // Сбрасываем tasks, чтобы Earn.tsx мог их синхронизировать
+        setUser((prev) => ({
+          ...prev,
+          tasks: userDataFromDb.tasks || [],
+          referals: userDataFromDb.referals || [],
+        }));
+        setTasks([]); // Сбрасываем tasks для синхронизации в Earn.tsx
       } else {
-        console.log(
-          "Пользователь не найден в Firestore, создаем нового пользователя"
-        );
-        const newUser = {
+        console.log("Создаем нового пользователя в Firestore");
+        const newUser: UserData = {
           id: userData.id,
           firstName: userData.firstName,
           username: userData.username,
@@ -163,10 +171,9 @@ function App() {
           photoUrl: userData.photoUrl,
           balance: 0,
           tasks: [],
+          referals: [],
         };
-
         await setDoc(userDocRef, newUser);
-        console.log("Новый пользователь создан в Firestore");
         setBalance(0);
         setTasks([]);
       }
@@ -177,23 +184,64 @@ function App() {
     }
   };
 
+  const handleReferral = async (newUserId: string, referrerId: string) => {
+    if (newUserId === referrerId) return; // Нельзя быть своим рефералом
+
+    const referrerRef = doc(db, "userData", referrerId);
+    const referrerSnap = await getDoc(referrerRef);
+
+    if (referrerSnap.exists()) {
+      const referrerData = referrerSnap.data() as UserData;
+      const existingReferrals = referrerData.referals || [];
+
+      // Проверяем, не добавлен ли уже этот реферал
+      if (!existingReferrals.some((ref) => ref.id === newUserId)) {
+        const newReferral: Referal = { id: newUserId };
+        await updateDoc(referrerRef, {
+          referals: arrayUnion(newReferral),
+        });
+        console.log(
+          `Реферал ${newUserId} добавлен к пользователю ${referrerId}`
+        );
+
+        // Обновляем локальное состояние, избегая дублирования
+        if (user.id === referrerId) {
+          setUser((prev) => {
+            const currentReferals = prev.referals || [];
+            if (currentReferals.some((ref) => ref.id === newUserId)) {
+              return prev; // Если реферал уже есть в локальном состоянии, не добавляем
+            }
+            return {
+              ...prev,
+              referals: [...currentReferals, newReferral],
+            };
+          });
+        }
+      } else {
+        console.log(
+          `Реферал ${newUserId} уже существует у пользователя ${referrerId}`
+        );
+      }
+    } else {
+      console.log(`Пользователь с ID ${referrerId} не найден в Firestore`);
+    }
+  };
+
   useEffect(() => {
     if (!user.id) return;
 
     const intervalId = setInterval(async () => {
-      // Исключаем поле action из tasks перед сохранением
       const tasksToSave = tasks.map(({ action, ...rest }) => rest);
-
-      const userData = {
+      const userData: UserData = {
         id: user.id,
         firstName: user.firstName,
         username: user.username,
         lastInteraction: new Date().toISOString(),
         photoUrl: user.photoUrl,
         balance: balance,
-        tasks: tasksToSave, // Сохраняем только сериализуемые данные
+        tasks: tasksToSave,
+        referals: user.referals || [],
       };
-      console.log("Обновление данных пользователя:", userData);
 
       const userDocRef = doc(db, "userData", user.id);
       try {
@@ -201,10 +249,7 @@ function App() {
         if (userDoc.exists()) {
           await setDoc(userDocRef, userData, { merge: true });
           console.log("Данные пользователя обновлены в Firestore");
-          // Обновляем user.tasks после сохранения
           setUser((prev) => ({ ...prev, tasks: tasksToSave }));
-        } else {
-          console.log("Пользователь не найден в Firestore");
         }
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
@@ -212,7 +257,7 @@ function App() {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [user, [user, balance, tasks]]);
+  }, [user, balance, tasks]);
 
   return (
     <Router>
