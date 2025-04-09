@@ -28,6 +28,25 @@ function Header({ user, balance }: HeaderProps) {
     setIsOpen(false);
   });
 
+  const formatBalance = (balance: number | null): string => {
+    if (balance === null) return "Загрузка...";
+
+    const absBalance = Math.abs(balance);
+    const sign = balance < 0 ? "-" : "";
+
+    if (absBalance >= 1_000_000_000_000) {
+      return `${sign}${(balance / 1_000_000_000_000).toFixed(2)}T`;
+    } else if (absBalance >= 1_000_000_000) {
+      return `${sign}${(balance / 1_000_000_000).toFixed(2)}B`;
+    } else if (absBalance >= 1_000_000) {
+      return `${sign}${(balance / 1_000_000).toFixed(2)}M`;
+    } else if (absBalance >= 1_000) {
+      return `${sign}${(balance / 1_000).toFixed(2)}k`;
+    } else {
+      return balance.toFixed(2);
+    }
+  };
+
   return (
     <div className="header">
       <div className="headerRow">
@@ -44,7 +63,9 @@ function Header({ user, balance }: HeaderProps) {
             <img src={Token} alt="" />
           </div>
           <div className="balanceContent">
-            <div className="balanceText">Balance:</div>
+            <div className="balanceText">
+              <div className="balanceAmount">{formatBalance(balance)}</div>
+            </div>
             <div className="balanceAmount">
               {balance !== null ? balance.toFixed(2) : "Загрузка..."}
             </div>

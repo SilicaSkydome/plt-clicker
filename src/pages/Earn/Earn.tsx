@@ -14,6 +14,7 @@ const initialTasks: Task[] = [
     completed: false,
     action: (balance, setBalance) => {
       // Используем Telegram.WebApp.openLink вместо window.open
+      //@ts-ignore
       if (window.Telegram?.WebApp) {
         //@ts-ignore
         window.Telegram.WebApp.openLink("https://t.me/PirateLife1721");
