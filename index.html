@@ -8,6 +8,11 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.env = {
+        VITE_TEST_MODE: "%VITE_TEST_MODE%",
+      };
+    </script>
     <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
     <script type="module" src="/src/main.jsx"></script>
   </body>

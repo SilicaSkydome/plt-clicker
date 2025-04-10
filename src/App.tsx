@@ -16,6 +16,15 @@ import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { Task, UserData, Referal } from "./Interfaces";
 
+// Определяем тип для window.env
+declare global {
+  interface Window {
+    env?: {
+      VITE_TEST_MODE: string;
+    };
+  }
+}
+
 interface AppContentProps {
   user: UserData;
   isLoading: boolean;
@@ -94,51 +103,127 @@ function App() {
   useEffect(() => {
     const initializeUser = async () => {
       try {
-        const app = (window as any).Telegram.WebApp;
-        if (!app) {
-          console.error("Telegram WebApp не доступен");
-          setBalance(0);
-          setTasks([]);
-          setIsLoading(false);
-          return;
+        // Проверяем, включен ли тестовый режим через window.env
+        const isTestMode = window.env?.VITE_TEST_MODE === "true";
+
+        let userData: UserData;
+        let isTestUser = false;
+
+        if (isTestMode) {
+          console.warn(
+            "Тестовый режим включен, используется тестовый пользователь"
+          );
+          userData = {
+            id: "test_user_123",
+            firstName: "Test",
+            username: "testuser",
+            lastInteraction: new Date().toISOString(),
+            photoUrl: "https://placehold.co/40",
+            balance: 1000,
+            tasks: [],
+            referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
+          };
+          isTestUser = true;
+        } else {
+          // Проверяем, доступен ли Telegram Web App
+          const app = (window as any).Telegram?.WebApp;
+
+          if (!app) {
+            console.warn(
+              "Telegram Web App недоступен, переключаемся на тестового пользователя"
+            );
+            // Используем тестового пользователя, если Telegram недоступен
+            userData = {
+              id: "test_user_123",
+              firstName: "Test",
+              username: "testuser",
+              lastInteraction: new Date().toISOString(),
+              photoUrl: "",
+              balance: 1000,
+              tasks: [],
+              referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
+            };
+            isTestUser = true;
+          } else {
+            // Ждем, пока Telegram Web App будет готов
+            app.ready();
+
+            // Добавляем небольшую задержку, чтобы убедиться, что Telegram полностью инициализирован
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            const telegramUser = app.initDataUnsafe?.user;
+
+            if (!telegramUser) {
+              console.warn(
+                "Данные пользователя Telegram недоступны, переключаемся на тестового пользователя"
+              );
+              userData = {
+                id: "test_user_123",
+                firstName: "Test",
+                username: "testuser",
+                lastInteraction: new Date().toISOString(),
+                photoUrl: "https://placehold.co/40",
+                balance: 1000,
+                tasks: [],
+                referals: [
+                  { id: "test_referral_1" },
+                  { id: "test_referral_2" },
+                ],
+              };
+              isTestUser = true;
+            } else {
+              userData = {
+                id: telegramUser.id.toString(),
+                firstName: telegramUser.first_name || "Unknown",
+                username: telegramUser.username || "",
+                lastInteraction: new Date().toISOString(),
+                photoUrl: telegramUser.photo_url || "",
+                balance: 0,
+                tasks: [],
+                referals: [],
+              };
+            }
+          }
         }
 
-        app.ready();
-        const telegramUser = app.initDataUnsafe.user;
-
-        if (!telegramUser) {
-          console.error("Telegram user data is not available");
-          setBalance(0);
-          setTasks([]);
-          setIsLoading(false);
-          return;
-        }
-
-        const userData: UserData = {
-          id: telegramUser.id.toString(),
-          firstName: telegramUser.first_name || "Unknown",
-          username: telegramUser.username || "",
-          lastInteraction: new Date().toISOString(),
-          photoUrl: telegramUser.photo_url || "",
-          balance: 0,
-          tasks: [],
-          referals: [],
-        };
         setUser(userData);
 
-        // Получаем данные пользователя из Firestore
-        await getUserData(userData);
+        // Получаем данные пользователя из Firestore (только если не тестовый пользователь)
+        if (!isTestUser) {
+          await getUserData(userData);
 
-        // Проверка реферальной ссылки
-        const startParam = app.initDataUnsafe.start_param;
-        if (startParam?.startsWith("ref_")) {
-          const referrerId = startParam.split("_")[1];
-          await handleReferral(telegramUser.id.toString(), referrerId);
+          // Проверка реферальной ссылки
+          const app = (window as any).Telegram?.WebApp;
+          const startParam = app?.initDataUnsafe?.start_param;
+          if (startParam?.startsWith("ref_")) {
+            const referrerId = startParam.split("_")[1];
+            await handleReferral(userData.id, referrerId);
+          }
+        } else {
+          // Для тестового пользователя устанавливаем начальные значения
+          setBalance(userData.balance);
+          setTasks(
+            userData.tasks.map((task) => ({ ...task, action: () => false }))
+          );
         }
       } catch (error) {
         console.error("Ошибка при инициализации пользователя:", error);
-        setBalance(0);
-        setTasks([]);
+        // В случае любой ошибки переключаемся на тестового пользователя
+        const fallbackUser: UserData = {
+          id: "test_user_123",
+          firstName: "Test",
+          username: "testuser",
+          lastInteraction: new Date().toISOString(),
+          photoUrl: "",
+          balance: 1000,
+          tasks: [],
+          referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
+        };
+        setUser(fallbackUser);
+        setBalance(fallbackUser.balance);
+        setTasks(
+          fallbackUser.tasks.map((task) => ({ ...task, action: () => false }))
+        );
       } finally {
         setIsLoading(false);
       }
@@ -229,6 +314,12 @@ function App() {
 
   useEffect(() => {
     if (!user.id) return;
+
+    // Пропускаем синхронизацию с Firestore для тестового пользователя
+    if (user.id === "test_user_123") {
+      console.log("Тестовый пользователь, синхронизация с Firestore отключена");
+      return;
+    }
 
     const intervalId = setInterval(async () => {
       const tasksToSave = tasks.map(({ action, ...rest }) => rest);

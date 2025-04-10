@@ -1,4 +1,3 @@
-// pages/Game/Game.tsx
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import React from "react";
@@ -6,10 +5,28 @@ import chestPlaceholder from "../../assets/img/chestPlaceholder.webp";
 import shipPlaceholder from "../../assets/img/shipPlaceholder.png";
 import "./Game.css";
 import ProgressBar from "../../components/Common/ProgressBar/ProgressBar";
+import { db } from "../../../firebaseConfig";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 
 interface GameProps {
   balance: number;
   setBalance: (balance: number) => void;
+}
+
+interface ChestData {
+  x: number;
+  y: number;
+  id: number;
+  lastSpawnTime: number | null;
+  userId: string;
 }
 
 function Game({ balance, setBalance }: GameProps) {
@@ -18,8 +35,8 @@ function Game({ balance, setBalance }: GameProps) {
   const [score, setScore] = useState(0);
 
   // Получаем userId из Telegram Web App для уникальности данных
-
-  const telegramUserId = //@ts-ignore
+  const telegramUserId =
+    //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
 
   useEffect(() => {
@@ -66,13 +83,59 @@ function Game({ balance, setBalance }: GameProps) {
 
     let currentScene: Phaser.Scene | null = null;
     let chestData: Array<{
-      chest: Phaser.GameObjects.Sprite;
-      wave: Phaser.GameObjects.Graphics;
+      chest: Phaser.GameObjects.Sprite | null;
+      wave: Phaser.GameObjects.Graphics | null;
       x: number;
       y: number;
       id: number;
     }> = [];
     let lastVisibleCount: number | null = null;
+
+    // Загружаем данные о сундуках из Firestore
+    async function loadChestData(): Promise<ChestData[]> {
+      try {
+        const chestsQuery = query(
+          collection(db, "chests"),
+          where("userId", "==", telegramUserId)
+        );
+        const querySnapshot = await getDocs(chestsQuery);
+        const savedChests: ChestData[] = [];
+        querySnapshot.forEach((doc) => {
+          savedChests.push(doc.data() as ChestData);
+        });
+
+        // Если сундуков нет, создаем 3 новых
+        if (savedChests.length === 0) {
+          const newChests: ChestData[] = [
+            { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
+            { x: 0, y: 0, id: 1, lastSpawnTime: null, userId: telegramUserId },
+            { x: 0, y: 0, id: 2, lastSpawnTime: null, userId: telegramUserId },
+          ];
+          for (const chest of newChests) {
+            await saveChestData(chest);
+          }
+          return newChests;
+        }
+        return savedChests;
+      } catch (error) {
+        console.error("Error loading chest data:", error);
+        return [
+          { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
+          { x: 0, y: 0, id: 1, lastSpawnTime: null, userId: telegramUserId },
+          { x: 0, y: 0, id: 2, lastSpawnTime: null, userId: telegramUserId },
+        ];
+      }
+    }
+
+    // Сохраняем данные о сундуке в Firestore
+    async function saveChestData(chest: ChestData) {
+      try {
+        const chestDocRef = doc(db, "chests", `${telegramUserId}_${chest.id}`);
+        await setDoc(chestDocRef, chest);
+      } catch (error) {
+        console.error("Error saving chest data:", error);
+      }
+    }
 
     function preload(this: Phaser.Scene) {
       this.load.image("chest", chestPlaceholder);
@@ -105,57 +168,73 @@ function Game({ balance, setBalance }: GameProps) {
       });
 
       boat.on("pointerdown", () => {
-        setScore((prev) => {
-          const newScore = prev + 0.01;
-          setBalance(newScore);
+        // Используем queueMicrotask для асинхронного обновления состояния
+        queueMicrotask(() => {
+          setScore((prev) => {
+            const newScore = prev + 0.01;
+            setBalance(newScore);
 
-          const points = 0.01;
-          const baseFontSize = 16;
-          const fontSize = baseFontSize * scaleFactor;
-          const plusText = currentScene!.add
-            .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
-              fontSize: `${fontSize}px`,
-              color: "#ffd700",
-            })
-            .setOrigin(0.5)
-            .setDepth(4);
+            const points = 0.01;
+            const baseFontSize = 16;
+            const fontSize = baseFontSize * scaleFactor;
+            const plusText = currentScene!.add
+              .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
+                fontSize: `${fontSize}px`,
+                color: "#ffd700",
+              })
+              .setOrigin(0.5)
+              .setDepth(4);
 
-          const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
-          currentScene!.tweens.add({
-            targets: plusText,
-            y: targetY,
-            alpha: 0,
-            duration: 1000,
-            onComplete: () => plusText.destroy(),
+            const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
+            currentScene!.tweens.add({
+              targets: plusText,
+              y: targetY,
+              alpha: 0,
+              duration: 1000,
+              onComplete: () => plusText.destroy(),
+            });
+
+            return newScore;
           });
-
-          return newScore;
         });
       });
 
-      // Инициализация трех сундуков
-      for (let i = 0; i < 3; i++) {
-        let x, y;
-        let attempts = 0;
-        const maxAttempts = 10;
+      // Инициализация сундуков
+      loadChestData().then((savedChests) => {
+        savedChests.forEach((chest, index) => {
+          let x, y;
+          if (chest.x === 0 && chest.y === 0) {
+            // Если координаты не сохранены, генерируем новые
+            let attempts = 0;
+            const maxAttempts = 10;
 
-        do {
-          x = Phaser.Math.Between(50, baseWidth - 50);
-          y = Phaser.Math.Between(100, baseHeight - 100);
-          attempts++;
-        } while (
-          isOverlapping(x, y, chestData, boat, 50 * scaleFactor) &&
-          attempts < maxAttempts
-        );
+            do {
+              x = Phaser.Math.Between(50, baseWidth - 50);
+              y = Phaser.Math.Between(100, baseHeight - 100);
+              attempts++;
+            } while (
+              isOverlapping(x, y, savedChests, boat, 50 * scaleFactor) &&
+              attempts < maxAttempts
+            );
 
-        if (attempts < maxAttempts) {
-          initializeChest(this, x, y, scaleFactor, i);
-        } else {
-          console.warn(
-            "Could not find a valid position for chest after max attempts."
-          );
-        }
-      }
+            if (attempts >= maxAttempts) {
+              console.warn(
+                "Could not find a valid position for chest after max attempts."
+              );
+              return;
+            }
+
+            savedChests[index].x = x;
+            savedChests[index].y = y;
+            saveChestData(savedChests[index]);
+          } else {
+            x = chest.x;
+            y = chest.y;
+          }
+
+          initializeChest(this, x, y, scaleFactor, index, chest.lastSpawnTime);
+        });
+      });
     }
 
     function isOverlapping(
@@ -175,45 +254,29 @@ function Game({ balance, setBalance }: GameProps) {
       return false;
     }
 
-    // Вспомогательные функции для работы с localStorage
-    function getLastSpawnTime(chestKey: string): number | null {
-      try {
-        const time = localStorage.getItem(chestKey);
-        return time ? parseInt(time) : null;
-      } catch (e) {
-        console.error("Ошибка доступа к localStorage:", e);
-        return null;
-      }
-    }
-
-    function setLastSpawnTime(chestKey: string, time: number) {
-      try {
-        localStorage.setItem(chestKey, time.toString());
-      } catch (e) {
-        console.error("Ошибка записи в localStorage:", e);
-      }
-    }
-
     function initializeChest(
       scene: Phaser.Scene,
       x: number,
       y: number,
       scaleFactor: number,
-      id: number
+      id: number,
+      lastSpawnTime: number | null
     ) {
-      const chestKey = `chest_${telegramUserId}_${id}_time`; // Уникальный ключ для пользователя
-      const lastSpawnTime = getLastSpawnTime(chestKey);
       const currentTime = Date.now();
-      const respawnInterval = 10 * 60 * 1000; // 10 минут
+      const respawnInterval = 1 * 60 * 1000; // 1 минута для теста (можно вернуть 10 минут)
 
       if (!lastSpawnTime || currentTime - lastSpawnTime >= respawnInterval) {
         spawnChest(scene, x, y, scaleFactor, id);
       } else {
         const timeLeft = respawnInterval - (currentTime - lastSpawnTime);
         console.log(`Chest ${id} will respawn in ${timeLeft / 1000} seconds`);
-        scene.time.delayedCall(timeLeft, () => {
-          spawnChest(scene, x, y, scaleFactor, id);
-        });
+
+        // Используем setTimeout вместо scene.time.delayedCall
+        setTimeout(() => {
+          if (currentScene) {
+            spawnChest(currentScene, x, y, scaleFactor, id);
+          }
+        }, timeLeft);
       }
     }
 
@@ -273,12 +336,15 @@ function Game({ balance, setBalance }: GameProps) {
       const chestEntry = { chest, wave, x, y, id };
       chestData.push(chestEntry);
 
-      chest.on("pointerdown", () => {
+      chest.on("pointerdown", async () => {
         const points = Phaser.Math.Between(3, 10);
-        setScore((prev) => {
-          const newScore = prev + points;
-          setBalance(newScore);
-          return newScore;
+        // Используем queueMicrotask для асинхронного обновления состояния
+        queueMicrotask(() => {
+          setScore((prev) => {
+            const newScore = prev + points;
+            setBalance(newScore);
+            return newScore;
+          });
         });
 
         const baseFontSize = 16;
@@ -306,24 +372,34 @@ function Game({ balance, setBalance }: GameProps) {
 
         const index = chestData.indexOf(chestEntry);
         if (index !== -1) {
-          chestData.splice(index, 1);
+          chestData[index].chest = null;
+          chestData[index].wave = null;
         }
 
-        // Сохраняем время уничтожения сундука
-        const chestKey = `chest_${telegramUserId}_${id}_time`;
-        setLastSpawnTime(chestKey, Date.now());
+        // Сохраняем время уничтожения сундука в Firestore
+        const currentTime = Date.now();
+        const chestToSave: ChestData = {
+          x,
+          y,
+          id,
+          lastSpawnTime: currentTime,
+          userId: telegramUserId,
+        };
+        await saveChestData(chestToSave);
 
-        // Планируем восстановление через 10 минут
-        const respawnTime = 10 * 60 * 1000;
-        scene.time.delayedCall(respawnTime, () => {
-          spawnChest(scene, x, y, scaleFactor, id);
-        });
+        // Планируем восстановление через 1 минуту (для теста)
+        const respawnTime = 1 * 60 * 1000;
+        setTimeout(() => {
+          if (currentScene) {
+            spawnChest(currentScene, x, y, scaleFactor, id);
+          }
+        }, respawnTime);
       });
     }
 
     function update(this: Phaser.Scene) {
       const visibleCount = chestData.filter(
-        (entry) => entry.chest.visible && entry.chest.active
+        (entry) => entry.chest?.visible && entry.chest?.active
       ).length;
       if (lastVisibleCount !== visibleCount) {
         console.log("Visible chests in update:", visibleCount);
@@ -340,8 +416,8 @@ function Game({ balance, setBalance }: GameProps) {
         gameInstance.current.destroy(true);
         gameInstance.current = null;
         chestData.forEach((entry) => {
-          entry.chest.destroy();
-          entry.wave.destroy();
+          entry.chest?.destroy();
+          entry.wave?.destroy();
         });
         currentScene = null;
       }

@@ -66,9 +66,6 @@ function Header({ user, balance }: HeaderProps) {
             <div className="balanceText">
               <div className="balanceAmount">{formatBalance(balance)}</div>
             </div>
-            <div className="balanceAmount">
-              {balance !== null ? balance.toFixed(2) : "Загрузка..."}
-            </div>
           </div>
         </div>
       </div>
