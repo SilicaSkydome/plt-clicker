@@ -15,10 +15,12 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
+import { Rank } from "../../Interfaces"; // Импортируем интерфейс Rank
 
 interface GameProps {
   balance: number;
   setBalance: (balance: number) => void;
+  currentRank: Rank; // Добавляем пропс для текущего ранга
 }
 
 interface ChestData {
@@ -29,12 +31,11 @@ interface ChestData {
   userId: string;
 }
 
-function Game({ balance, setBalance }: GameProps) {
+function Game({ balance, setBalance, currentRank }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [score, setScore] = useState(0);
 
-  // Получаем userId из Telegram Web App для уникальности данных
   const telegramUserId =
     //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
@@ -91,7 +92,6 @@ function Game({ balance, setBalance }: GameProps) {
     }> = [];
     let lastVisibleCount: number | null = null;
 
-    // Загружаем данные о сундуках из Firestore
     async function loadChestData(): Promise<ChestData[]> {
       try {
         const chestsQuery = query(
@@ -104,7 +104,6 @@ function Game({ balance, setBalance }: GameProps) {
           savedChests.push(doc.data() as ChestData);
         });
 
-        // Если сундуков нет, создаем 3 новых
         if (savedChests.length === 0) {
           const newChests: ChestData[] = [
             { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
@@ -127,7 +126,6 @@ function Game({ balance, setBalance }: GameProps) {
       }
     }
 
-    // Сохраняем данные о сундуке в Firestore
     async function saveChestData(chest: ChestData) {
       try {
         const chestDocRef = doc(db, "chests", `${telegramUserId}_${chest.id}`);
@@ -167,14 +165,37 @@ function Game({ balance, setBalance }: GameProps) {
         ease: "Sine.easeInOut",
       });
 
+      // Добавляем текст с текущим рангом и титулом
+      const rankText = this.add
+        .text(
+          baseWidth / 2,
+          30,
+          `${currentRank.title}: ${currentRank.pirateTitle}`,
+          {
+            fontSize: "20px",
+            color: "#ffffff",
+            stroke: "#000000",
+            strokeThickness: 3,
+          }
+        )
+        .setOrigin(0.5)
+        .setDepth(5);
+
+      // Обновляем текст ранга при изменении
+      this.events.on("updateRankText", (newRank: Rank) => {
+        rankText.setText(`${newRank.title}: ${newRank.pirateTitle}`);
+      });
+
+      // Обновляем текст при изменении пропса currentRank
+      rankText.setText(`${currentRank.title}: ${currentRank.pirateTitle}`);
+
       boat.on("pointerdown", () => {
-        // Используем queueMicrotask для асинхронного обновления состояния
+        const points = 0.01 + currentRank.clickBonus;
         queueMicrotask(() => {
           setScore((prev) => {
-            const newScore = prev + 0.01;
+            const newScore = prev + points;
             setBalance(newScore);
 
-            const points = 0.01;
             const baseFontSize = 16;
             const fontSize = baseFontSize * scaleFactor;
             const plusText = currentScene!.add
@@ -199,12 +220,10 @@ function Game({ balance, setBalance }: GameProps) {
         });
       });
 
-      // Инициализация сундуков
       loadChestData().then((savedChests) => {
         savedChests.forEach((chest, index) => {
           let x, y;
           if (chest.x === 0 && chest.y === 0) {
-            // Если координаты не сохранены, генерируем новые
             let attempts = 0;
             const maxAttempts = 10;
 
@@ -263,7 +282,7 @@ function Game({ balance, setBalance }: GameProps) {
       lastSpawnTime: number | null
     ) {
       const currentTime = Date.now();
-      const respawnInterval = 1 * 60 * 1000; // 1 минута для теста (можно вернуть 10 минут)
+      const respawnInterval = 1 * 60 * 1000;
 
       if (!lastSpawnTime || currentTime - lastSpawnTime >= respawnInterval) {
         spawnChest(scene, x, y, scaleFactor, id);
@@ -271,7 +290,6 @@ function Game({ balance, setBalance }: GameProps) {
         const timeLeft = respawnInterval - (currentTime - lastSpawnTime);
         console.log(`Chest ${id} will respawn in ${timeLeft / 1000} seconds`);
 
-        // Используем setTimeout вместо scene.time.delayedCall
         setTimeout(() => {
           if (currentScene) {
             spawnChest(currentScene, x, y, scaleFactor, id);
@@ -338,33 +356,33 @@ function Game({ balance, setBalance }: GameProps) {
 
       chest.on("pointerdown", async () => {
         const points = Phaser.Math.Between(3, 10);
-        // Используем queueMicrotask для асинхронного обновления состояния
         queueMicrotask(() => {
           setScore((prev) => {
             const newScore = prev + points;
             setBalance(newScore);
+
+            const baseFontSize = 16;
+            const fontSize = baseFontSize * scaleFactor;
+            const plusText = scene.add
+              .text(chest.x, chest.y, `+${points}`, {
+                fontSize: `${fontSize}px`,
+                color: "#ffd700",
+              })
+              .setOrigin(0.5)
+              .setDepth(4)
+              .setActive(true);
+
+            const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
+            scene.tweens.add({
+              targets: plusText,
+              y: targetY,
+              alpha: 0,
+              duration: 1000,
+              onComplete: () => plusText.destroy(),
+            });
+
             return newScore;
           });
-        });
-
-        const baseFontSize = 16;
-        const fontSize = baseFontSize * scaleFactor;
-        const plusText = scene.add
-          .text(chest.x, chest.y, `+${points}`, {
-            fontSize: `${fontSize}px`,
-            color: "#ffd700",
-          })
-          .setOrigin(0.5)
-          .setDepth(4)
-          .setActive(true);
-
-        const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
-        scene.tweens.add({
-          targets: plusText,
-          y: targetY,
-          alpha: 0,
-          duration: 1000,
-          onComplete: () => plusText.destroy(),
         });
 
         chest.destroy();
@@ -376,7 +394,6 @@ function Game({ balance, setBalance }: GameProps) {
           chestData[index].wave = null;
         }
 
-        // Сохраняем время уничтожения сундука в Firestore
         const currentTime = Date.now();
         const chestToSave: ChestData = {
           x,
@@ -387,7 +404,6 @@ function Game({ balance, setBalance }: GameProps) {
         };
         await saveChestData(chestToSave);
 
-        // Планируем восстановление через 1 минуту (для теста)
         const respawnTime = 1 * 60 * 1000;
         setTimeout(() => {
           if (currentScene) {
@@ -422,7 +438,7 @@ function Game({ balance, setBalance }: GameProps) {
         currentScene = null;
       }
     };
-  }, []);
+  }, [currentRank]); // Добавляем currentRank в зависимости useEffect
 
   return (
     <>

@@ -3,18 +3,11 @@ import "./Header.css";
 import Logo from "../../assets/Logo.png";
 import Token from "../../assets/img/Token.png";
 import { useClickAway } from "@uidotdev/usehooks";
-
-interface userData {
-  id: string;
-  firstName: string;
-  username: string;
-  lastInteraction: string;
-  photoUrl: string;
-}
+import { UserData } from "../../Interfaces";
 
 interface HeaderProps {
   balance: number;
-  user: userData | null;
+  user: UserData | null;
 }
 
 function Header({ user, balance }: HeaderProps) {
@@ -80,7 +73,7 @@ function Header({ user, balance }: HeaderProps) {
         <h2>{user?.username}</h2>
         <div className="profileModalRank">
           <p>Your rank:</p>
-          <h3>Captain</h3>
+          <h3>{user?.rank?.title}</h3>
         </div>
         <div className="seaCount">You have opened 4 seas</div>
         <div className="tillNext">Until the next sea is left:</div>

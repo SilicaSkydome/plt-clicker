@@ -22,6 +22,18 @@ export interface Referal {
   id: string;
 }
 
+// Интерфейс для ранга
+export interface Rank {
+  title: string;
+  pirateTitle: string;
+  goldMin: number;
+  goldMax: number | null; // null для последнего ранга (бесконечность)
+  clickBonus: number;
+  goldPerClick: number;
+  level: number;
+  estimatedDays: number;
+}
+
 export interface UserData {
   id: string;
   firstName: string;
@@ -29,6 +41,7 @@ export interface UserData {
   lastInteraction: string;
   photoUrl: string;
   balance: number;
-  tasks: TaskData[]; // Храним только сериализуемые данные
+  tasks: TaskData[];
   referals?: Referal[];
+  rank?: Rank; // Добавляем поле для ранга
 }

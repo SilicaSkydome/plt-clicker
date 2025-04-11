@@ -14,7 +14,7 @@ import Header from "./components/Header/Header";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
-import { Task, UserData, Referal } from "./Interfaces";
+import { Task, UserData, Referal, Rank } from "./Interfaces";
 
 // Определяем тип для window.env
 declare global {
@@ -25,6 +25,72 @@ declare global {
   }
 }
 
+// Определяем ранги на основе таблицы
+const RANKS: Rank[] = [
+  {
+    title: "Cabin Boy",
+    pirateTitle: "Cabin Boy",
+    goldMin: 0,
+    goldMax: 999,
+    clickBonus: 0,
+    goldPerClick: 0.035,
+    level: 1,
+    estimatedDays: 0,
+  },
+  {
+    title: "Sailor",
+    pirateTitle: "Sailor Saltbeard",
+    goldMin: 1000,
+    goldMax: 4999,
+    clickBonus: 0.03,
+    goldPerClick: 0.065,
+    level: 1,
+    estimatedDays: 3.3,
+  },
+  {
+    title: "Quartermaster",
+    pirateTitle: "Quartermaster Hookhand",
+    goldMin: 5000,
+    goldMax: 9999,
+    clickBonus: 0.06,
+    goldPerClick: 0.095,
+    level: 3,
+    estimatedDays: 10.4,
+  },
+  {
+    title: "First Mate",
+    pirateTitle: "First Mate Deadeye",
+    goldMin: 10000,
+    goldMax: 29999,
+    clickBonus: 0.09,
+    goldPerClick: 0.125,
+    level: 5,
+    estimatedDays: 15.9,
+  },
+  {
+    title: "Captain",
+    pirateTitle: "Captain Blackbeard",
+    goldMin: 30000,
+    goldMax: null, // Infinity
+    clickBonus: 0.12,
+    goldPerClick: 0.195,
+    level: 15,
+    estimatedDays: 31.9,
+  },
+];
+
+// Функция для определения текущего ранга на основе баланса
+const determineRank = (gold: number): Rank => {
+  for (const rank of RANKS) {
+    if (rank.goldMax === null) {
+      if (gold >= rank.goldMin) return rank;
+    } else if (gold >= rank.goldMin && gold <= rank.goldMax) {
+      return rank;
+    }
+  }
+  return RANKS[0]; // По умолчанию возвращаем Юнгу
+};
+
 interface AppContentProps {
   user: UserData;
   isLoading: boolean;
@@ -32,6 +98,7 @@ interface AppContentProps {
   setBalance: (balance: number) => void;
   tasks: Task[];
   setTasks: (tasks: Task[]) => void;
+  currentRank: Rank; // Добавляем текущий ранг
 }
 
 const AppContent = ({
@@ -41,6 +108,7 @@ const AppContent = ({
   setBalance,
   tasks,
   setTasks,
+  currentRank,
 }: AppContentProps) => {
   const location = useLocation();
 
@@ -63,7 +131,13 @@ const AppContent = ({
       <Routes>
         <Route
           path="/"
-          element={<Game balance={balance} setBalance={setBalance} />}
+          element={
+            <Game
+              balance={balance}
+              setBalance={setBalance}
+              currentRank={currentRank}
+            />
+          }
         />
         <Route path="/stats" element={<Stats />} />
         <Route path="/invite" element={<Invite user={user} />} />
@@ -95,15 +169,23 @@ function App() {
     balance: 0,
     tasks: [],
     referals: [],
+    rank: RANKS[0], // Начальный ранг
   });
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalance] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]); // Текущий ранг
+
+  // Обновляем ранг при изменении баланса
+  useEffect(() => {
+    const newRank = determineRank(balance);
+    setCurrentRank(newRank);
+    setUser((prev) => ({ ...prev, rank: newRank }));
+  }, [balance]);
 
   useEffect(() => {
     const initializeUser = async () => {
       try {
-        // Проверяем, включен ли тестовый режим через window.env
         const isTestMode = window.env?.VITE_TEST_MODE === "true";
 
         let userData: UserData;
@@ -122,17 +204,16 @@ function App() {
             balance: 1000,
             tasks: [],
             referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
+            rank: determineRank(1000), // Устанавливаем ранг для тестового пользователя
           };
           isTestUser = true;
         } else {
-          // Проверяем, доступен ли Telegram Web App
           const app = (window as any).Telegram?.WebApp;
 
           if (!app) {
             console.warn(
               "Telegram Web App недоступен, переключаемся на тестового пользователя"
             );
-            // Используем тестового пользователя, если Telegram недоступен
             userData = {
               id: "test_user_123",
               firstName: "Test",
@@ -142,13 +223,11 @@ function App() {
               balance: 1000,
               tasks: [],
               referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
+              rank: determineRank(1000),
             };
             isTestUser = true;
           } else {
-            // Ждем, пока Telegram Web App будет готов
             app.ready();
-
-            // Добавляем небольшую задержку, чтобы убедиться, что Telegram полностью инициализирован
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             const telegramUser = app.initDataUnsafe?.user;
@@ -169,6 +248,7 @@ function App() {
                   { id: "test_referral_1" },
                   { id: "test_referral_2" },
                 ],
+                rank: determineRank(1000),
               };
               isTestUser = true;
             } else {
@@ -181,6 +261,7 @@ function App() {
                 balance: 0,
                 tasks: [],
                 referals: [],
+                rank: RANKS[0], // Начальный ранг для нового пользователя
               };
             }
           }
@@ -188,11 +269,9 @@ function App() {
 
         setUser(userData);
 
-        // Получаем данные пользователя из Firestore (только если не тестовый пользователь)
         if (!isTestUser) {
           await getUserData(userData);
 
-          // Проверка реферальной ссылки
           const app = (window as any).Telegram?.WebApp;
           const startParam = app?.initDataUnsafe?.start_param;
           if (startParam?.startsWith("ref_")) {
@@ -200,15 +279,14 @@ function App() {
             await handleReferral(userData.id, referrerId);
           }
         } else {
-          // Для тестового пользователя устанавливаем начальные значения
           setBalance(userData.balance);
+          setCurrentRank(userData.rank || RANKS[0]);
           setTasks(
             userData.tasks.map((task) => ({ ...task, action: () => false }))
           );
         }
       } catch (error) {
         console.error("Ошибка при инициализации пользователя:", error);
-        // В случае любой ошибки переключаемся на тестового пользователя
         const fallbackUser: UserData = {
           id: "test_user_123",
           firstName: "Test",
@@ -218,9 +296,11 @@ function App() {
           balance: 1000,
           tasks: [],
           referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
+          rank: determineRank(1000),
         };
         setUser(fallbackUser);
         setBalance(fallbackUser.balance);
+        setCurrentRank(fallbackUser.rank || RANKS[0]);
         setTasks(
           fallbackUser.tasks.map((task) => ({ ...task, action: () => false }))
         );
@@ -240,10 +320,12 @@ function App() {
         const userDataFromDb = userDoc.data() as UserData;
         console.log("Данные пользователя из Firestore:", userDataFromDb);
         setBalance(userDataFromDb.balance || 0);
+        setCurrentRank(userDataFromDb.rank || RANKS[0]); // Загружаем ранг из Firestore
         setUser((prev) => ({
           ...prev,
           tasks: userDataFromDb.tasks || [],
           referals: userDataFromDb.referals || [],
+          rank: userDataFromDb.rank || RANKS[0],
         }));
         setTasks([]); // Сбрасываем tasks для синхронизации в Earn.tsx
       } else {
@@ -257,20 +339,23 @@ function App() {
           balance: 0,
           tasks: [],
           referals: [],
+          rank: RANKS[0], // Начальный ранг для нового пользователя
         };
         await setDoc(userDocRef, newUser);
         setBalance(0);
+        setCurrentRank(RANKS[0]);
         setTasks([]);
       }
     } catch (error) {
       console.error("Ошибка при получении данных из Firestore:", error);
       setBalance(0);
+      setCurrentRank(RANKS[0]);
       setTasks([]);
     }
   };
 
   const handleReferral = async (newUserId: string, referrerId: string) => {
-    if (newUserId === referrerId) return; // Нельзя быть своим рефералом
+    if (newUserId === referrerId) return;
 
     const referrerRef = doc(db, "userData", referrerId);
     const referrerSnap = await getDoc(referrerRef);
@@ -279,7 +364,6 @@ function App() {
       const referrerData = referrerSnap.data() as UserData;
       const existingReferrals = referrerData.referals || [];
 
-      // Проверяем, не добавлен ли уже этот реферал
       if (!existingReferrals.some((ref) => ref.id === newUserId)) {
         const newReferral: Referal = { id: newUserId };
         await updateDoc(referrerRef, {
@@ -289,12 +373,11 @@ function App() {
           `Реферал ${newUserId} добавлен к пользователю ${referrerId}`
         );
 
-        // Обновляем локальное состояние, избегая дублирования
         if (user.id === referrerId) {
           setUser((prev) => {
             const currentReferals = prev.referals || [];
             if (currentReferals.some((ref) => ref.id === newUserId)) {
-              return prev; // Если реферал уже есть в локальном состоянии, не добавляем
+              return prev;
             }
             return {
               ...prev,
@@ -315,7 +398,6 @@ function App() {
   useEffect(() => {
     if (!user.id) return;
 
-    // Пропускаем синхронизацию с Firestore для тестового пользователя
     if (user.id === "test_user_123") {
       console.log("Тестовый пользователь, синхронизация с Firestore отключена");
       return;
@@ -332,6 +414,7 @@ function App() {
         balance: balance,
         tasks: tasksToSave,
         referals: user.referals || [],
+        rank: currentRank, // Сохраняем текущий ранг
       };
 
       const userDocRef = doc(db, "userData", user.id);
@@ -340,7 +423,11 @@ function App() {
         if (userDoc.exists()) {
           await setDoc(userDocRef, userData, { merge: true });
           console.log("Данные пользователя обновлены в Firestore");
-          setUser((prev) => ({ ...prev, tasks: tasksToSave }));
+          setUser((prev) => ({
+            ...prev,
+            tasks: tasksToSave,
+            rank: currentRank,
+          }));
         }
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
@@ -348,7 +435,7 @@ function App() {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [user, balance, tasks]);
+  }, [user, balance, tasks, currentRank]); // Добавляем currentRank в зависимости
 
   return (
     <Router>
@@ -359,6 +446,7 @@ function App() {
         setBalance={setBalance}
         tasks={tasks}
         setTasks={setTasks}
+        currentRank={currentRank} // Передаем текущий ранг
       />
     </Router>
   );
