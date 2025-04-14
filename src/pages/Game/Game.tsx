@@ -260,7 +260,7 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
       lastSpawnTime: number | null
     ) {
       const currentTime = Date.now();
-      const respawnInterval = 1 * 60 * 1000;
+      const respawnInterval = 1 * 30 * 1000;
 
       if (!lastSpawnTime || currentTime - lastSpawnTime >= respawnInterval) {
         spawnChest(scene, x, y, scaleFactor, id);
