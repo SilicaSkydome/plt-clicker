@@ -302,7 +302,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         .getSourceImage() as HTMLImageElement;
 
       // Задаем масштаб напрямую
-      const finalChestScale = 1 * scaleFactor;
+      const finalChestScale = 0.04 * scaleFactor;
 
       // Добавляем кольца как sprites
       const rings: Phaser.GameObjects.Sprite[] = [];
