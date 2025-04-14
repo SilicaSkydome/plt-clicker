@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import React from "react";
-import chest from "../../assets/img/chest.png";
+import chest from "../../assets/img/chestPlaceholder.webp";
 import ring1 from "../../assets/img/circles/1.png";
 import ring2 from "../../assets/img/circles/2.png";
 import ring3 from "../../assets/img/circles/3.png";
