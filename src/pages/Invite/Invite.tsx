@@ -115,7 +115,7 @@ const Invite: React.FC<InviteProps> = ({ user }) => {
       <div className="friendsSection">
         <h4>Friends</h4>
         {isLoadingReferrals ? (
-          <p>Загрузка друзей...</p>
+          <p>Loading friends...</p>
         ) : referralsWithDetails.length > 0 ? (
           <ul>
             {referralsWithDetails.map((friend) => (
