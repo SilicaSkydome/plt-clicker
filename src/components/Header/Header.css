@@ -24,8 +24,8 @@
   gap: 5px;
 }
 .profilePicture {
-  width: 28px;
-  height: 28px;
+  width: 45px;
+  height: 45px;
   border-radius: 50%;
   background: linear-gradient(
     90deg,
@@ -50,12 +50,11 @@
 }
 
 .logo {
-  width: 120px;
   flex: 3;
   position: relative;
 }
 .logo img {
-  width: 120px;
+  width: 240px;
 }
 .headerRow2 {
   justify-content: center;
