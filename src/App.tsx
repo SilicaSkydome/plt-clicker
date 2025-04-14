@@ -201,10 +201,10 @@ function App() {
             username: "testuser",
             lastInteraction: new Date().toISOString(),
             photoUrl: "https://placehold.co/40",
-            balance: 1000,
+            balance: 10000,
             tasks: [],
             referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-            rank: determineRank(1000), // Устанавливаем ранг для тестового пользователя
+            rank: determineRank(10000), // Устанавливаем ранг для тестового пользователя
           };
           isTestUser = true;
         } else {
@@ -220,10 +220,10 @@ function App() {
               username: "testuser",
               lastInteraction: new Date().toISOString(),
               photoUrl: "",
-              balance: 1000,
+              balance: 10000,
               tasks: [],
               referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-              rank: determineRank(1000),
+              rank: determineRank(10000),
             };
             isTestUser = true;
           } else {
@@ -242,13 +242,13 @@ function App() {
                 username: "testuser",
                 lastInteraction: new Date().toISOString(),
                 photoUrl: "https://placehold.co/40",
-                balance: 1000,
+                balance: 10000,
                 tasks: [],
                 referals: [
                   { id: "test_referral_1" },
                   { id: "test_referral_2" },
                 ],
-                rank: determineRank(1000),
+                rank: determineRank(10000),
               };
               isTestUser = true;
             } else {

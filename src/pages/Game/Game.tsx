@@ -165,32 +165,10 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
         ease: "Sine.easeInOut",
       });
 
-      // Добавляем текст с текущим рангом и титулом
-      const rankText = this.add
-        .text(
-          baseWidth / 2,
-          30,
-          `${currentRank.title}: ${currentRank.pirateTitle}`,
-          {
-            fontSize: "20px",
-            color: "#ffffff",
-            stroke: "#000000",
-            strokeThickness: 3,
-          }
-        )
-        .setOrigin(0.5)
-        .setDepth(5);
-
-      // Обновляем текст ранга при изменении
-      this.events.on("updateRankText", (newRank: Rank) => {
-        rankText.setText(`${newRank.title}: ${newRank.pirateTitle}`);
-      });
-
-      // Обновляем текст при изменении пропса currentRank
-      rankText.setText(`${currentRank.title}: ${currentRank.pirateTitle}`);
-
       boat.on("pointerdown", () => {
-        const points = 0.01 + currentRank.clickBonus;
+        const basePoints = 0.01;
+        // Прямо добавляем clickBonus к базовым очкам: basePoints + clickBonus
+        const points = basePoints + currentRank.clickBonus;
         queueMicrotask(() => {
           setScore((prev) => {
             const newScore = prev + points;
@@ -355,7 +333,9 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
       chestData.push(chestEntry);
 
       chest.on("pointerdown", async () => {
-        const points = Phaser.Math.Between(3, 10);
+        const basePoints = Phaser.Math.Between(3, 10);
+        // Прямо добавляем clickBonus к базовым очкам: basePoints + clickBonus
+        const points = basePoints + currentRank.clickBonus;
         queueMicrotask(() => {
           setScore((prev) => {
             const newScore = prev + points;
@@ -364,7 +344,8 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
             const baseFontSize = 16;
             const fontSize = baseFontSize * scaleFactor;
             const plusText = scene.add
-              .text(chest.x, chest.y, `+${points}`, {
+              .text(chest.x, chest.y, `+${points.toFixed(2)}`, {
+                // Показываем 2 знака после запятой для сундуков
                 fontSize: `${fontSize}px`,
                 color: "#ffd700",
               })
@@ -438,7 +419,7 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
         currentScene = null;
       }
     };
-  }, [currentRank]); // Добавляем currentRank в зависимости useEffect
+  }, [currentRank]); // Оставляем зависимость currentRank, так как он влияет на множитель
 
   return (
     <>
