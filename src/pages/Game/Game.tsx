@@ -21,6 +21,7 @@ interface GameProps {
   balance: number;
   setBalance: (balance: number) => void;
   currentRank: Rank; // Добавляем пропс для текущего ранга
+  ranks: Rank[]; // Добавляем пропс для всех рангов
 }
 
 interface ChestData {
@@ -31,7 +32,7 @@ interface ChestData {
   userId: string;
 }
 
-function Game({ balance, setBalance, currentRank }: GameProps) {
+function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [score, setScore] = useState(0);
@@ -423,8 +424,11 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
 
   return (
     <>
-      <div className="text">Until the next sea is left:</div>
-      <ProgressBar balance={balance} />
+      <div className="text">
+        {" "}
+        {currentRank.title}, Until the next rank is left:
+      </div>
+      <ProgressBar balance={balance} currentRank={currentRank} ranks={ranks} />
       <div ref={gameRef} className="game-container" />
     </>
   );

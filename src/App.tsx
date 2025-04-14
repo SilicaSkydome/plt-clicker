@@ -91,6 +91,18 @@ const determineRank = (gold: number): Rank => {
   return RANKS[0]; // По умолчанию возвращаем Юнгу
 };
 
+const testUser = {
+  id: "test_user_123",
+  firstName: "Test",
+  username: "testuser",
+  lastInteraction: new Date().toISOString(),
+  photoUrl: "https://placehold.co/40",
+  balance: 990,
+  tasks: [],
+  referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
+  rank: determineRank(990), // Устанавливаем ранг для тестового пользователя
+};
+
 interface AppContentProps {
   user: UserData;
   isLoading: boolean;
@@ -136,6 +148,7 @@ const AppContent = ({
               balance={balance}
               setBalance={setBalance}
               currentRank={currentRank}
+              ranks={RANKS}
             />
           }
         />
@@ -201,10 +214,10 @@ function App() {
             username: "testuser",
             lastInteraction: new Date().toISOString(),
             photoUrl: "https://placehold.co/40",
-            balance: 10000,
+            balance: 1000,
             tasks: [],
             referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-            rank: determineRank(10000), // Устанавливаем ранг для тестового пользователя
+            rank: determineRank(1000), // Устанавливаем ранг для тестового пользователя
           };
           isTestUser = true;
         } else {
@@ -214,17 +227,7 @@ function App() {
             console.warn(
               "Telegram Web App недоступен, переключаемся на тестового пользователя"
             );
-            userData = {
-              id: "test_user_123",
-              firstName: "Test",
-              username: "testuser",
-              lastInteraction: new Date().toISOString(),
-              photoUrl: "",
-              balance: 10000,
-              tasks: [],
-              referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-              rank: determineRank(10000),
-            };
+            userData = testUser;
             isTestUser = true;
           } else {
             app.ready();
@@ -236,20 +239,7 @@ function App() {
               console.warn(
                 "Данные пользователя Telegram недоступны, переключаемся на тестового пользователя"
               );
-              userData = {
-                id: "test_user_123",
-                firstName: "Test",
-                username: "testuser",
-                lastInteraction: new Date().toISOString(),
-                photoUrl: "https://placehold.co/40",
-                balance: 10000,
-                tasks: [],
-                referals: [
-                  { id: "test_referral_1" },
-                  { id: "test_referral_2" },
-                ],
-                rank: determineRank(10000),
-              };
+              userData = testUser;
               isTestUser = true;
             } else {
               userData = {
@@ -287,17 +277,7 @@ function App() {
         }
       } catch (error) {
         console.error("Ошибка при инициализации пользователя:", error);
-        const fallbackUser: UserData = {
-          id: "test_user_123",
-          firstName: "Test",
-          username: "testuser",
-          lastInteraction: new Date().toISOString(),
-          photoUrl: "",
-          balance: 1000,
-          tasks: [],
-          referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-          rank: determineRank(1000),
-        };
+        const fallbackUser: UserData = testUser;
         setUser(fallbackUser);
         setBalance(fallbackUser.balance);
         setCurrentRank(fallbackUser.rank || RANKS[0]);
