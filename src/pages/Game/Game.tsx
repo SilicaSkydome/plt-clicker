@@ -385,7 +385,7 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
         };
         await saveChestData(chestToSave);
 
-        const respawnTime = 1 * 60 * 1000;
+        const respawnTime = 1 * 30 * 1000;
         setTimeout(() => {
           if (currentScene) {
             spawnChest(currentScene, x, y, scaleFactor, id);
