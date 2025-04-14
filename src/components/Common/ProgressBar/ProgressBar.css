@@ -1,0 +1,31 @@
+.progressBar {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.progressBar-container {
+  width: 50%;
+  height: 20px;
+  background-color: #e0e0e0; /* Серый фон для пустой части */
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #333; /* Темная обводка */
+}
+
+.progressBar-fill {
+  height: 100%;
+  background-color: #ffd700; /* Золотой цвет для заполненной части */
+  transition: width 0.3s ease-in-out; /* Плавная анимация изменения прогресса */
+}
+
+.progressBar-label {
+  text-align: center;
+  margin-top: 5px;
+  font-size: 14px;
+  color: #ffffff; /* Белый цвет текста */
+  text-shadow: 1px 1px 2px #000000; /* Тень для текста */
+}

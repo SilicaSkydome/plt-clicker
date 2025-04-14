@@ -424,7 +424,7 @@ function Game({ balance, setBalance, currentRank }: GameProps) {
   return (
     <>
       <div className="text">Until the next sea is left:</div>
-      <ProgressBar />
+      <ProgressBar balance={balance} />
       <div ref={gameRef} className="game-container" />
     </>
   );
