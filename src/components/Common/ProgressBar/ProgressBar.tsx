@@ -18,7 +18,7 @@ function ProgressBar({ balance }: ProgressBarProps) {
         />
       </div>
       <div className="progressBar-label">
-        {progressPercentage.toFixed(0)}% {/* Отображаем процент прогресса */}
+        {progressPercentage.toFixed(0)}% / Captain
       </div>
     </div>
   );

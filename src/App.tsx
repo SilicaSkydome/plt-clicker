@@ -122,7 +122,7 @@ const AppContent = ({
   };
 
   if (isLoading) {
-    return <div>Загрузка...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
