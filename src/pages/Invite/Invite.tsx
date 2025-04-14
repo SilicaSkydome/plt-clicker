@@ -75,7 +75,7 @@ const Invite: React.FC<InviteProps> = ({ user }) => {
   }, [user]);
 
   const handleSend = () => {
-    const shareText = "Присоединяйся к моей игре-кликеру!";
+    const shareText = "Join the seven seas of Pirate Life!";
     //@ts-ignore
     window.Telegram?.WebApp.openTelegramLink(
       `https://t.me/share/url?url=${encodeURIComponent(

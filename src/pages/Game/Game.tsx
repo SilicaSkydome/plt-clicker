@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import React from "react";
-import chestPlaceholder from "../../assets/img/chestPlaceholder.webp";
+import chest from "../../assets/img/chest.png";
+import ring1 from "../../assets/img/circles/1.png";
+import ring2 from "../../assets/img/circles/2.png";
+import ring3 from "../../assets/img/circles/3.png";
 import shipPlaceholder from "../../assets/img/shipPlaceholder.png";
 import "./Game.css";
 import ProgressBar from "../../components/Common/ProgressBar/ProgressBar";
@@ -15,13 +18,13 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { Rank } from "../../Interfaces"; // Импортируем интерфейс Rank
+import { Rank } from "../../Interfaces";
 
 interface GameProps {
   balance: number;
   setBalance: (balance: number) => void;
-  currentRank: Rank; // Добавляем пропс для текущего ранга
-  ranks: Rank[]; // Добавляем пропс для всех рангов
+  currentRank: Rank;
+  ranks: Rank[];
 }
 
 interface ChestData {
@@ -86,7 +89,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
     let currentScene: Phaser.Scene | null = null;
     let chestData: Array<{
       chest: Phaser.GameObjects.Sprite | null;
-      wave: Phaser.GameObjects.Graphics | null;
+      rings: Phaser.GameObjects.Sprite[];
       x: number;
       y: number;
       id: number;
@@ -137,7 +140,10 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
     }
 
     function preload(this: Phaser.Scene) {
-      this.load.image("chest", chestPlaceholder);
+      this.load.image("chest", chest);
+      this.load.image("ring1", ring1);
+      this.load.image("ring2", ring2);
+      this.load.image("ring3", ring3);
       this.load.image("boat", shipPlaceholder);
     }
 
@@ -168,7 +174,6 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
 
       boat.on("pointerdown", () => {
         const basePoints = 0.01;
-        // Прямо добавляем clickBonus к базовым очкам: basePoints + clickBonus
         const points = basePoints + currentRank.clickBonus;
         queueMicrotask(() => {
           setScore((prev) => {
@@ -291,51 +296,72 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         .setDepth(3)
         .setActive(true) as Phaser.GameObjects.Sprite;
 
+      // Проверяем размеры текстуры сундука
       const chestTexture = scene.textures
         .get("chest")
         .getSourceImage() as HTMLImageElement;
-      const chestOriginalWidth = chestTexture.width;
-      const desiredChestWidth = baseWidth * 0.1;
-      const chestScale = desiredChestWidth / chestOriginalWidth;
-      const minChestScale = 0.05;
-      const maxChestScale = 0.3;
-      const finalChestScale = Math.max(
-        minChestScale,
-        Math.min(chestScale, maxChestScale)
-      );
 
-      const baseWaveRadius = 10;
-      const waveRadius = baseWaveRadius * scaleFactor;
-      const wave = scene.add.graphics().setPosition(x, y).setDepth(0);
-      wave.lineStyle(3, 0x00ffff, 0.8);
-      wave.strokeCircle(0, 0, waveRadius);
+      // Задаем масштаб напрямую
+      const finalChestScale = 1 * scaleFactor;
 
-      scene.tweens.add({
-        targets: wave,
-        scale: 3,
-        alpha: 0,
-        duration: 2000,
-        repeat: -1,
-        onUpdate: () => {
-          wave.clear();
-          wave.lineStyle(3, 0x00ffff, 0.8 * wave.alpha);
-          wave.strokeCircle(0, 0, waveRadius * wave.scale);
-        },
+      // Добавляем кольца как sprites
+      const rings: Phaser.GameObjects.Sprite[] = [];
+      const ringKeys = ["ring1", "ring2", "ring3"];
+      ringKeys.forEach((key, index) => {
+        const ring = scene.add
+          .sprite(x, y, key)
+          .setDepth(0)
+          .setScale(0) as Phaser.GameObjects.Sprite;
+
+        const ringTexture = scene.textures
+          .get(key)
+          .getSourceImage() as HTMLImageElement;
+        const ringOriginalWidth = ringTexture.width;
+        // Увеличиваем размер колец пропорционально сундуку
+        const desiredRingWidth = baseWidth * (0.3 + index * 0.07); // Увеличиваем базовый размер колец
+        const ringScale = desiredRingWidth / ringOriginalWidth;
+        const minRingScale = 0.2 + index * 0.07; // Увеличиваем минимальный масштаб
+        const maxRingScale = ringScale;
+
+        scene.tweens.add({
+          targets: ring,
+          scale: { from: minRingScale, to: maxRingScale },
+          duration: 3000,
+          delay: index * 500,
+          ease: "Sine.easeInOut",
+          repeat: -1,
+          yoyo: true,
+        });
+
+        scene.tweens.add({
+          targets: ring,
+          alpha: { from: 0.4, to: 1 },
+          duration: 3000,
+          delay: index * 500,
+          ease: "Sine.easeInOut",
+          repeat: -1,
+          yoyo: true,
+        });
+
+        rings.push(ring);
       });
 
+      // Анимация появления сундука
       scene.tweens.add({
         targets: chest,
         scale: finalChestScale,
         duration: 500,
         ease: "Bounce.easeOut",
+        onComplete: () => {
+          console.log("Final chest scale after tween:", chest.scale);
+        },
       });
 
-      const chestEntry = { chest, wave, x, y, id };
+      const chestEntry = { chest, rings, x, y, id };
       chestData.push(chestEntry);
 
       chest.on("pointerdown", async () => {
         const basePoints = Phaser.Math.Between(3, 10);
-        // Прямо добавляем clickBonus к базовым очкам: basePoints + clickBonus
         const points = basePoints + currentRank.clickBonus;
         queueMicrotask(() => {
           setScore((prev) => {
@@ -346,7 +372,6 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
             const fontSize = baseFontSize * scaleFactor;
             const plusText = scene.add
               .text(chest.x, chest.y, `+${points.toFixed(2)}`, {
-                // Показываем 2 знака после запятой для сундуков
                 fontSize: `${fontSize}px`,
                 color: "#ffd700",
               })
@@ -368,12 +393,12 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         });
 
         chest.destroy();
-        wave.destroy();
+        rings.forEach((ring) => ring.destroy());
 
         const index = chestData.indexOf(chestEntry);
         if (index !== -1) {
           chestData[index].chest = null;
-          chestData[index].wave = null;
+          chestData[index].rings = [];
         }
 
         const currentTime = Date.now();
@@ -415,17 +440,16 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         gameInstance.current = null;
         chestData.forEach((entry) => {
           entry.chest?.destroy();
-          entry.wave?.destroy();
+          entry.rings.forEach((ring) => ring.destroy());
         });
         currentScene = null;
       }
     };
-  }, [currentRank]); // Оставляем зависимость currentRank, так как он влияет на множитель
+  }, [currentRank]);
 
   return (
     <>
       <div className="text">
-        {" "}
         {currentRank.title}, Until the next rank is left:
       </div>
       <ProgressBar balance={balance} currentRank={currentRank} ranks={ranks} />

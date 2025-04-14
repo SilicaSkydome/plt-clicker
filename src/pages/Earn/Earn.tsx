@@ -55,7 +55,7 @@ const initialTasks: Task[] = [
     points: 15,
     completed: false,
     action: (balance, setBalance) => {
-      window.open("https://www.instagram.com/piratelife1721/", "_blank");
+      window.open("https://www.instagram.com/piratelife_official/", "_blank");
       return true; // Возвращаем true, чтобы отметить задачу как выполненную
     },
   },
