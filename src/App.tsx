@@ -71,7 +71,7 @@ const RANKS: Rank[] = [
     title: "Captain",
     pirateTitle: "Captain Blackbeard",
     goldMin: 30000,
-    goldMax: null, // Infinity
+    goldMax: null,
     clickBonus: 0.12,
     goldPerClick: 0.195,
     level: 15,
@@ -88,7 +88,7 @@ const determineRank = (gold: number): Rank => {
       return rank;
     }
   }
-  return RANKS[0]; // По умолчанию возвращаем Юнгу
+  return RANKS[0];
 };
 
 const testUser = {
@@ -100,7 +100,7 @@ const testUser = {
   balance: 990,
   tasks: [],
   referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-  rank: determineRank(990), // Устанавливаем ранг для тестового пользователя
+  rank: determineRank(990),
 };
 
 interface AppContentProps {
@@ -110,7 +110,7 @@ interface AppContentProps {
   setBalance: (balance: number) => void;
   tasks: Task[];
   setTasks: (tasks: Task[]) => void;
-  currentRank: Rank; // Добавляем текущий ранг
+  currentRank: Rank;
 }
 
 const AppContent = ({
@@ -182,14 +182,13 @@ function App() {
     balance: 0,
     tasks: [],
     referals: [],
-    rank: RANKS[0], // Начальный ранг
+    rank: RANKS[0],
   });
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalance] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]); // Текущий ранг
+  const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
 
-  // Обновляем ранг при изменении баланса
   useEffect(() => {
     const newRank = determineRank(balance);
     setCurrentRank(newRank);
@@ -217,7 +216,7 @@ function App() {
             balance: 1000,
             tasks: [],
             referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-            rank: determineRank(1000), // Устанавливаем ранг для тестового пользователя
+            rank: determineRank(1000),
           };
           isTestUser = true;
         } else {
@@ -251,7 +250,7 @@ function App() {
                 balance: 0,
                 tasks: [],
                 referals: [],
-                rank: RANKS[0], // Начальный ранг для нового пользователя
+                rank: RANKS[0],
               };
             }
           }
@@ -261,13 +260,6 @@ function App() {
 
         if (!isTestUser) {
           await getUserData(userData);
-
-          const app = (window as any).Telegram?.WebApp;
-          const startParam = app?.initDataUnsafe?.start_param;
-          if (startParam?.startsWith("ref_")) {
-            const referrerId = startParam.split("_")[1];
-            await handleReferral(userData.id, referrerId);
-          }
         } else {
           setBalance(userData.balance);
           setCurrentRank(userData.rank || RANKS[0]);
@@ -292,6 +284,51 @@ function App() {
     initializeUser();
   }, []);
 
+  // Добавляем эффект для обработки start_param и команды /start
+  useEffect(() => {
+    const app = (window as any).Telegram?.WebApp;
+
+    if (app) {
+      const handleStartParam = async () => {
+        const startParam = app.initDataUnsafe?.start_param;
+        console.log("Получен start_param:", startParam);
+        if (startParam?.startsWith("ref_")) {
+          const referrerId = startParam.split("_")[1];
+          console.log(
+            `Обрабатываем реферала: newUserId=${user.id}, referrerId=${referrerId}`
+          );
+          await handleReferral(user.id, referrerId);
+
+          // Отправляем пользователю сообщение о том, что он успешно зарегистрирован через реферала
+          app.sendData(
+            JSON.stringify({
+              type: "sendMessage",
+              chat_id: user.id,
+              text: `Welcome! You were referred by user ${referrerId}.`,
+            })
+          );
+        } else {
+          // Если start_param отсутствует, отправляем приветственное сообщение
+          app.sendData(
+            JSON.stringify({
+              type: "sendMessage",
+              chat_id: user.id,
+              text: "Welcome to the game! Click on the boat to start earning gold.",
+            })
+          );
+        }
+      };
+
+      handleStartParam();
+
+      app.onEvent("initData", handleStartParam);
+
+      return () => {
+        app.offEvent("initData", handleStartParam);
+      };
+    }
+  }, [user.id]);
+
   const getUserData = async (userData: UserData) => {
     try {
       const userDocRef = doc(db, "userData", userData.id);
@@ -300,14 +337,14 @@ function App() {
         const userDataFromDb = userDoc.data() as UserData;
         console.log("Данные пользователя из Firestore:", userDataFromDb);
         setBalance(userDataFromDb.balance || 0);
-        setCurrentRank(userDataFromDb.rank || RANKS[0]); // Загружаем ранг из Firestore
+        setCurrentRank(userDataFromDb.rank || RANKS[0]);
         setUser((prev) => ({
           ...prev,
           tasks: userDataFromDb.tasks || [],
           referals: userDataFromDb.referals || [],
           rank: userDataFromDb.rank || RANKS[0],
         }));
-        setTasks([]); // Сбрасываем tasks для синхронизации в Earn.tsx
+        setTasks([]);
       } else {
         console.log("Создаем нового пользователя в Firestore");
         const newUser: UserData = {
@@ -319,7 +356,7 @@ function App() {
           balance: 0,
           tasks: [],
           referals: [],
-          rank: RANKS[0], // Начальный ранг для нового пользователя
+          rank: RANKS[0],
         };
         await setDoc(userDocRef, newUser);
         setBalance(0);
@@ -335,43 +372,53 @@ function App() {
   };
 
   const handleReferral = async (newUserId: string, referrerId: string) => {
-    if (newUserId === referrerId) return;
+    if (newUserId === referrerId) {
+      console.log("Пользователь не может быть своим рефералом");
+      return;
+    }
 
-    const referrerRef = doc(db, "userData", referrerId);
-    const referrerSnap = await getDoc(referrerRef);
+    try {
+      const referrerRef = doc(db, "userData", referrerId);
+      const referrerSnap = await getDoc(referrerRef);
 
-    if (referrerSnap.exists()) {
-      const referrerData = referrerSnap.data() as UserData;
-      const existingReferrals = referrerData.referals || [];
+      if (referrerSnap.exists()) {
+        const referrerData = referrerSnap.data() as UserData;
+        const existingReferrals = referrerData.referals || [];
 
-      if (!existingReferrals.some((ref) => ref.id === newUserId)) {
-        const newReferral: Referal = { id: newUserId };
-        await updateDoc(referrerRef, {
-          referals: arrayUnion(newReferral),
-        });
-        console.log(
-          `Реферал ${newUserId} добавлен к пользователю ${referrerId}`
-        );
-
-        if (user.id === referrerId) {
-          setUser((prev) => {
-            const currentReferals = prev.referals || [];
-            if (currentReferals.some((ref) => ref.id === newUserId)) {
-              return prev;
-            }
-            return {
-              ...prev,
-              referals: [...currentReferals, newReferral],
-            };
+        if (!existingReferrals.some((ref) => ref.id === newUserId)) {
+          const newReferral: Referal = { id: newUserId };
+          await updateDoc(referrerRef, {
+            referals: arrayUnion(newReferral),
+            balance: (referrerData.balance || 0) + 100, // Начисляем 100 золота за реферала
           });
+          console.log(
+            `Реферал ${newUserId} успешно добавлен к пользователю ${referrerId}`
+          );
+
+          if (user.id === referrerId) {
+            setUser((prev) => {
+              const currentReferals = prev.referals || [];
+              if (currentReferals.some((ref) => ref.id === newUserId)) {
+                return prev;
+              }
+              return {
+                ...prev,
+                referals: [...currentReferals, newReferral],
+                balance: (prev.balance || 0) + 100,
+              };
+            });
+            setBalance((prev) => prev + 100);
+          }
+        } else {
+          console.log(
+            `Реферал ${newUserId} уже существует у пользователя ${referrerId}`
+          );
         }
       } else {
-        console.log(
-          `Реферал ${newUserId} уже существует у пользователя ${referrerId}`
-        );
+        console.log(`Пользователь с ID ${referrerId} не найден в Firestore`);
       }
-    } else {
-      console.log(`Пользователь с ID ${referrerId} не найден в Firestore`);
+    } catch (error) {
+      console.error("Ошибка при обработке реферала:", error);
     }
   };
 
@@ -393,8 +440,7 @@ function App() {
         photoUrl: user.photoUrl,
         balance: balance,
         tasks: tasksToSave,
-        referals: user.referals || [],
-        rank: currentRank, // Сохраняем текущий ранг
+        rank: currentRank,
       };
 
       const userDocRef = doc(db, "userData", user.id);
@@ -415,7 +461,7 @@ function App() {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [user, balance, tasks, currentRank]); // Добавляем currentRank в зависимости
+  }, [user, balance, tasks, currentRank]);
 
   return (
     <Router>
@@ -426,7 +472,7 @@ function App() {
         setBalance={setBalance}
         tasks={tasks}
         setTasks={setTasks}
-        currentRank={currentRank} // Передаем текущий ранг
+        currentRank={currentRank}
       />
     </Router>
   );
