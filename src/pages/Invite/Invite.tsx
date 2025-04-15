@@ -1,5 +1,5 @@
+import "./Invite.css";
 import React, { useState, useEffect } from "react";
-import "./InvitePage.css";
 import { UserData, Referal } from "../../Interfaces";
 
 interface InviteProps {
@@ -55,25 +55,27 @@ function Invite({ user }: InviteProps) {
 
   return (
     <div className="invitePage">
-      <h1>Invite Friends</h1>
-      <p>Share your referral link and earn rewards!</p>
-      <div className="referralLinkSection">
-        <input type="text" value={referralLink} readOnly />
-        <button onClick={copyToClipboard}>Copy Link</button>
-        <button onClick={shareViaTelegram}>Share via Telegram</button>
+      <div className="inviteSection">
+        <h1>Invite Friends</h1>
+        <p>Share your referral link and earn rewards!</p>
+        <div className="referralLinkSection">
+          <input type="text" value={referralLink} readOnly />
+          <button onClick={copyToClipboard}>Copy Link</button>
+          <button onClick={shareViaTelegram}>Share via Telegram</button>
+        </div>
+        <h2>Your Referrals</h2>
+        {isLoadingReferrals && referrals.length === 0 ? (
+          <p>Loading...</p>
+        ) : referrals.length === 0 ? (
+          <p>No referrals yet. Invite friends to earn rewards!</p>
+        ) : (
+          <ul className="referralsList">
+            {referrals.map((referral, index) => (
+              <li key={index}>Friend ID: {referral.id}</li>
+            ))}
+          </ul>
+        )}
       </div>
-      <h2>Your Referrals</h2>
-      {isLoadingReferrals && referrals.length === 0 ? (
-        <p>Loading...</p>
-      ) : referrals.length === 0 ? (
-        <p>No referrals yet. Invite friends to earn rewards!</p>
-      ) : (
-        <ul className="referralsList">
-          {referrals.map((referral, index) => (
-            <li key={index}>Friend ID: {referral.id}</li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

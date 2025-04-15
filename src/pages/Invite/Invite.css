@@ -1,4 +1,4 @@
-.invPage {
+.invitePage {
   display: flex;
   flex-direction: column;
   justify-content: start;
@@ -62,7 +62,16 @@
 
   color: #5e5e5e;
 }
-.inviteSection input {
+.referralLinkSection {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+
+  width: 90%;
+}
+.referralLinkSection input {
   width: 240px;
   height: 40px;
   border-width: 1px;
@@ -71,10 +80,10 @@
   border: 1px solid #535353;
   background: #1f1f19;
 }
-.inviteSection input:focus {
+.referralLinkSection input:focus {
   outline: none;
 }
-.inviteSection button {
+.referralLinkSection button {
   width: 240px;
   height: 40px;
   border-radius: 30px;
@@ -91,7 +100,7 @@
 
   border: 1px solid #f9d663;
 }
-.inviteSection div {
+.referralLinkSection div {
   font-family: "Inter";
   font-weight: 400;
   font-size: 12px;
