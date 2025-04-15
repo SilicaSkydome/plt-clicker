@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "./App.css";
 import {
   BrowserRouter as Router,
@@ -188,6 +188,15 @@ function App() {
   const [balance, setBalance] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
+
+  // Храним предыдущие данные для сравнения
+  const prevDataRef = useRef({
+    balance: 0,
+    tasks: [] as Task[],
+    currentRank: RANKS[0],
+  });
+  // Храним таймер для задержки синхронизации
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const newRank = determineRank(balance);
@@ -389,7 +398,7 @@ function App() {
           const newReferral: Referal = { id: newUserId };
           await updateDoc(referrerRef, {
             referals: arrayUnion(newReferral),
-            balance: (referrerData.balance || 0) + 100, // Начисляем 100 золота за реферала
+            balance: (referrerData.balance || 0) + 100,
           });
           console.log(
             `Реферал ${newUserId} успешно добавлен к пользователю ${referrerId}`
@@ -422,17 +431,30 @@ function App() {
     }
   };
 
+  // Эффект для синхронизации данных с Firestore только при изменении
   useEffect(() => {
-    if (!user.id) return;
-
-    if (user.id === "test_user_123") {
+    if (!user.id || user.id === "test_user_123") {
       console.log("Тестовый пользователь, синхронизация с Firestore отключена");
       return;
     }
 
-    const intervalId = setInterval(async () => {
+    // Функция для проверки изменений данных
+    const hasDataChanged = () => {
+      const currentData = { balance, tasks, currentRank };
+      const prevData = prevDataRef.current;
+
+      return (
+        currentData.balance !== prevData.balance ||
+        JSON.stringify(currentData.tasks) !== JSON.stringify(prevData.tasks) ||
+        JSON.stringify(currentData.currentRank) !==
+          JSON.stringify(prevData.currentRank)
+      );
+    };
+
+    // Функция для синхронизации данных с Firestore
+    const syncWithFirestore = async () => {
       const tasksToSave = tasks.map(({ action, ...rest }) => rest);
-      const userData: UserData = {
+      const userData: Partial<UserData> = {
         id: user.id,
         firstName: user.firstName,
         username: user.username,
@@ -448,7 +470,9 @@ function App() {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           await setDoc(userDocRef, userData, { merge: true });
-          console.log("Данные пользователя обновлены в Firestore");
+          console.log(
+            "Данные пользователя обновлены в Firestore (без перезаписи referals)"
+          );
           setUser((prev) => ({
             ...prev,
             tasks: tasksToSave,
@@ -458,9 +482,32 @@ function App() {
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
-    }, 3000);
+    };
 
-    return () => clearInterval(intervalId);
+    // Обновляем предыдущие данные
+    prevDataRef.current = { balance, tasks, currentRank };
+
+    // Если данные изменились, сбрасываем и устанавливаем новый таймер
+    if (hasDataChanged()) {
+      console.log("Данные изменились, планируем синхронизацию через 3 секунды");
+
+      // Сбрасываем предыдущий таймер, если он существует
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+
+      // Устанавливаем новый таймер на 3 секунды
+      syncTimeoutRef.current = setTimeout(() => {
+        syncWithFirestore();
+      }, 3000);
+    }
+
+    // Очистка таймера при размонтировании компонента
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
   }, [user, balance, tasks, currentRank]);
 
   return (
