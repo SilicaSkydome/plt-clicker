@@ -1,135 +1,81 @@
-import React, { useEffect, useState } from "react";
-import { UserData, Referal } from "../../Interfaces"; // Исправляем Referral на Referal
-import { doc, getDoc } from "firebase/firestore";
+import React, { useState, useEffect } from "react";
 import "./InvitePage.css";
-import { db } from "../../../firebaseConfig";
+import { UserData, Referal } from "../../Interfaces";
 
 interface InviteProps {
   user: UserData;
 }
 
-interface ReferralWithDetails {
-  id: string; // Явно указываем id как обязательное поле
-  firstName?: string;
-  username?: string;
-}
+function Invite({ user }: InviteProps) {
+  const [referrals, setReferrals] = useState<Referal[]>([]);
+  const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
 
-const Invite: React.FC<InviteProps> = ({ user }) => {
-  const [referralLink, setReferralLink] = useState<string>("");
-  const [copied, setCopied] = useState<boolean>(false);
-  const [referralsWithDetails, setReferralsWithDetails] = useState<
-    ReferralWithDetails[]
-  >([]);
-  const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
+  // Получаем реферальную ссылку
+  const referralLink = user.id
+    ? `https://t.me/YourBotName?start=ref_${user.id}`
+    : "";
 
-  const generateReferralLink = (userId: string): string => {
-    const botUsername = "pltc_bot"; // Замените на имя вашего бота
-    return `https://t.me/${botUsername}?start=ref_${userId}`;
+  // Функция для копирования ссылки
+  const copyToClipboard = () => {
+    if (referralLink) {
+      navigator.clipboard.writeText(referralLink);
+      alert("Referral link copied to clipboard!");
+    }
   };
 
-  // Метод для получения данных рефералов из Firestore
-  const fetchReferralData = async (referrals: Referal[]) => {
-    setIsLoadingReferrals(true);
-    const referralsData: ReferralWithDetails[] = [];
-    for (const referral of referrals) {
-      try {
-        const userRef = doc(db, "userData", referral.id);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const userData = userSnap.data() as UserData;
-          referralsData.push({
-            id: referral.id,
-            firstName: userData.firstName,
-            username: userData.username,
-          });
-        } else {
-          // Если пользователь не найден, добавляем только ID
-          referralsData.push({ id: referral.id });
-        }
-      } catch (error) {
-        console.error(
-          `Ошибка при получении данных реферала ${referral.id}:`,
-          error
-        );
-        referralsData.push({ id: referral.id }); // В случае ошибки добавляем только ID
-      }
+  // Функция для отправки ссылки через Telegram
+  const shareViaTelegram = () => {
+    if (referralLink) {
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(
+        referralLink
+      )}&text=Join me in this awesome game!`;
+      window.open(telegramShareUrl, "_blank");
     }
-    setReferralsWithDetails(referralsData);
-    setIsLoadingReferrals(false);
   };
 
   useEffect(() => {
-    if (user.id) {
-      const link = generateReferralLink(user.id);
-      setReferralLink(link);
-    } else {
-      setReferralLink("Ошибка: пользователь не авторизован");
+    // Проверяем, есть ли рефералы в localStorage
+    const cachedReferrals = localStorage.getItem(`referrals_${user.id}`);
+    if (cachedReferrals) {
+      setReferrals(JSON.parse(cachedReferrals));
+      setIsLoadingReferrals(false); // Устанавливаем isLoadingReferrals в false, если есть локальные данные
     }
 
-    // Загружаем данные рефералов при изменении user.referals
-    if (user.referals && user.referals.length > 0) {
-      fetchReferralData(user.referals);
-    } else {
-      setReferralsWithDetails([]);
+    // Синхронизируем рефералов из user.referals (Firestore)
+    if (user.referals) {
+      setReferrals(user.referals);
+      setIsLoadingReferrals(false);
+      // Сохраняем рефералов в localStorage
+      localStorage.setItem(
+        `referrals_${user.id}`,
+        JSON.stringify(user.referals)
+      );
     }
-  }, [user]);
-
-  const handleSend = () => {
-    const shareText = "Join the seven seas of Pirate Life!";
-    //@ts-ignore
-    window.Telegram?.WebApp.openTelegramLink(
-      `https://t.me/share/url?url=${encodeURIComponent(
-        referralLink
-      )}&text=${encodeURIComponent(shareText)}`
-    );
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(referralLink).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
+  }, [user.referals, user.id]);
 
   return (
-    <div className="invPage">
-      <div className="inviteSection">
-        <h1>Invite Friends</h1>
-        <h2>Your Referral Link</h2>
-        <p>Copy or send your link directly to friends</p>
-        <input
-          type="text"
-          value={referralLink}
-          readOnly
-          className="referralInput"
-        />
-        <div className="buttonGroup">
-          <button onClick={handleSend} className="sendButton">
-            Send via Telegram
-          </button>
-          <button onClick={handleCopy} className="copyButton">
-            {copied ? "Copied!" : "Copy"}
-          </button>
-        </div>
+    <div className="invitePage">
+      <h1>Invite Friends</h1>
+      <p>Share your referral link and earn rewards!</p>
+      <div className="referralLinkSection">
+        <input type="text" value={referralLink} readOnly />
+        <button onClick={copyToClipboard}>Copy Link</button>
+        <button onClick={shareViaTelegram}>Share via Telegram</button>
       </div>
-      <div className="friendsSection">
-        <h4>Friends</h4>
-        {isLoadingReferrals ? (
-          <p>Loading friends...</p>
-        ) : referralsWithDetails.length > 0 ? (
-          <ul>
-            {referralsWithDetails.map((friend) => (
-              <li key={friend.id}>
-                {friend.username || friend.firstName || friend.id}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No friends invited yet.</p>
-        )}
-      </div>
+      <h2>Your Referrals</h2>
+      {isLoadingReferrals && referrals.length === 0 ? (
+        <p>Loading...</p>
+      ) : referrals.length === 0 ? (
+        <p>No referrals yet. Invite friends to earn rewards!</p>
+      ) : (
+        <ul className="referralsList">
+          {referrals.map((referral, index) => (
+            <li key={index}>Friend ID: {referral.id}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
-};
+}
 
 export default Invite;

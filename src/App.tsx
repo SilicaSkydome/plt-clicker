@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "./App.css";
 import {
   BrowserRouter as Router,
@@ -13,8 +13,15 @@ import Earn from "./pages/Earn/Earn";
 import Header from "./components/Header/Header";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { db } from "../firebaseConfig";
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
-import { Task, UserData, Referal, Rank } from "./Interfaces";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  arrayUnion,
+  onSnapshot,
+} from "firebase/firestore";
+import { Task, TaskData, UserData, Referal, Rank } from "./Interfaces";
 
 // Определяем тип для window.env
 declare global {
@@ -76,6 +83,62 @@ const RANKS: Rank[] = [
     goldPerClick: 0.195,
     level: 15,
     estimatedDays: 31.9,
+  },
+];
+
+// Определяем начальный список задач (переносим из Earn.tsx)
+const initialTasks: Task[] = [
+  {
+    icon: "./assets/Quest1.png",
+    title: "Subscribe to Telegram",
+    description: "+15 PLGold",
+    button: "",
+    points: 15,
+    completed: false,
+    action: (balance, setBalance) => {
+      //@ts-ignore
+      if (window.Telegram?.WebApp) {
+        //@ts-ignore
+        window.Telegram.WebApp.openLink("https://t.me/PirateLife1721");
+      } else {
+        window.open("https://t.me/PirateLife1721", "_blank");
+      }
+      return true;
+    },
+  },
+  {
+    icon: "./assets/Quest2.png",
+    title: "Invite 5 friends",
+    description: "+15 PLGold",
+    button: "",
+    points: 25,
+    completed: false,
+    action: (balance, setBalance, user, navigate) => {
+      if (user) {
+        if (user.referals && user.referals?.length < 5) {
+          navigate("/invite");
+          return false;
+        } else if (user.referals && user.referals?.length >= 5) {
+          return true;
+        } else {
+          navigate("/invite");
+          return false;
+        }
+      }
+      return false;
+    },
+  },
+  {
+    icon: "./assets/Quest3.png",
+    title: "Join instagram",
+    description: "+15 PLGold",
+    button: "",
+    points: 15,
+    completed: false,
+    action: (balance, setBalance) => {
+      window.open("https://www.instagram.com/piratelife_official/", "_blank");
+      return true;
+    },
   },
 ];
 
@@ -189,6 +252,27 @@ function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
 
+  // Храним предыдущие данные для сравнения
+  const prevDataRef = useRef({
+    balance: 0,
+    tasks: [] as Task[],
+    currentRank: RANKS[0],
+  });
+  // Храним таймер для задержки синхронизации
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Функция для преобразования TaskData[] в Task[]
+  const mapTasksFromFirestore = (firestoreTasks: TaskData[]): Task[] => {
+    return initialTasks.map((initialTask) => {
+      const firestoreTask = firestoreTasks.find(
+        (task) => task.title === initialTask.title
+      );
+      return firestoreTask
+        ? { ...initialTask, completed: firestoreTask.completed }
+        : initialTask;
+    });
+  };
+
   useEffect(() => {
     const newRank = determineRank(balance);
     setCurrentRank(newRank);
@@ -284,7 +368,7 @@ function App() {
     initializeUser();
   }, []);
 
-  // Добавляем эффект для обработки start_param и команды /start
+  // Эффект для обработки start_param и команды /start
   useEffect(() => {
     const app = (window as any).Telegram?.WebApp;
 
@@ -299,7 +383,6 @@ function App() {
           );
           await handleReferral(user.id, referrerId);
 
-          // Отправляем пользователю сообщение о том, что он успешно зарегистрирован через реферала
           app.sendData(
             JSON.stringify({
               type: "sendMessage",
@@ -308,7 +391,6 @@ function App() {
             })
           );
         } else {
-          // Если start_param отсутствует, отправляем приветственное сообщение
           app.sendData(
             JSON.stringify({
               type: "sendMessage",
@@ -329,6 +411,70 @@ function App() {
     }
   }, [user.id]);
 
+  // Эффект для синхронизации с Firestore в реальном времени
+  useEffect(() => {
+    if (!user.id || user.id === "test_user_123") return;
+
+    console.log(
+      "Подписываемся на обновления Firestore для пользователя:",
+      user.id
+    );
+
+    // Загружаем рефералов из localStorage при старте
+    const cachedReferrals = localStorage.getItem(`referrals_${user.id}`);
+    if (cachedReferrals) {
+      setUser((prev) => ({
+        ...prev,
+        referals: JSON.parse(cachedReferrals),
+      }));
+    }
+
+    const userDocRef = doc(db, "userData", user.id);
+    const unsubscribe = onSnapshot(
+      userDocRef,
+      (doc) => {
+        if (doc.exists()) {
+          const userDataFromDb = doc.data() as UserData;
+          console.log(
+            "Данные пользователя обновлены из Firestore:",
+            userDataFromDb
+          );
+          console.log("Обновленный массив рефералов:", userDataFromDb.referals);
+          setBalance(userDataFromDb.balance || 0);
+          setCurrentRank(userDataFromDb.rank || RANKS[0]);
+          setUser((prev) => {
+            const updatedReferals = userDataFromDb.referals || [];
+            console.log(
+              "Обновляем локальное состояние referals:",
+              updatedReferals
+            );
+            // Сохраняем рефералов в localStorage
+            localStorage.setItem(
+              `referrals_${user.id}`,
+              JSON.stringify(updatedReferals)
+            );
+            return {
+              ...prev,
+              tasks: userDataFromDb.tasks || [],
+              referals: updatedReferals,
+              rank: userDataFromDb.rank || RANKS[0],
+            };
+          });
+          // Преобразуем TaskData[] в Task[]
+          const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
+          setTasks(mappedTasks);
+        } else {
+          console.log("Документ пользователя не существует в Firestore");
+        }
+      },
+      (error) => {
+        console.error("Ошибка при подписке на данные Firestore:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user.id]);
+
   const getUserData = async (userData: UserData) => {
     try {
       const userDocRef = doc(db, "userData", userData.id);
@@ -344,7 +490,9 @@ function App() {
           referals: userDataFromDb.referals || [],
           rank: userDataFromDb.rank || RANKS[0],
         }));
-        setTasks([]);
+        // Преобразуем TaskData[] в Task[]
+        const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
+        setTasks(mappedTasks);
       } else {
         console.log("Создаем нового пользователя в Firestore");
         const newUser: UserData = {
@@ -361,13 +509,13 @@ function App() {
         await setDoc(userDocRef, newUser);
         setBalance(0);
         setCurrentRank(RANKS[0]);
-        setTasks([]);
+        setTasks(initialTasks); // Инициализируем задачи из initialTasks
       }
     } catch (error) {
       console.error("Ошибка при получении данных из Firestore:", error);
       setBalance(0);
       setCurrentRank(RANKS[0]);
-      setTasks([]);
+      setTasks(initialTasks);
     }
   };
 
@@ -389,7 +537,7 @@ function App() {
           const newReferral: Referal = { id: newUserId };
           await updateDoc(referrerRef, {
             referals: arrayUnion(newReferral),
-            balance: (referrerData.balance || 0) + 100, // Начисляем 100 золота за реферала
+            balance: (referrerData.balance || 0) + 100,
           });
           console.log(
             `Реферал ${newUserId} успешно добавлен к пользователю ${referrerId}`
@@ -401,9 +549,15 @@ function App() {
               if (currentReferals.some((ref) => ref.id === newUserId)) {
                 return prev;
               }
+              const updatedReferals = [...currentReferals, newReferral];
+              // Сохраняем рефералов в localStorage
+              localStorage.setItem(
+                `referrals_${user.id}`,
+                JSON.stringify(updatedReferals)
+              );
               return {
                 ...prev,
-                referals: [...currentReferals, newReferral],
+                referals: updatedReferals,
                 balance: (prev.balance || 0) + 100,
               };
             });
@@ -422,17 +576,30 @@ function App() {
     }
   };
 
+  // Эффект для синхронизации данных с Firestore только при изменении
   useEffect(() => {
-    if (!user.id) return;
-
-    if (user.id === "test_user_123") {
+    if (!user.id || user.id === "test_user_123") {
       console.log("Тестовый пользователь, синхронизация с Firestore отключена");
       return;
     }
 
-    const intervalId = setInterval(async () => {
+    // Функция для проверки изменений данных
+    const hasDataChanged = () => {
+      const currentData = { balance, tasks, currentRank };
+      const prevData = prevDataRef.current;
+
+      return (
+        currentData.balance !== prevData.balance ||
+        JSON.stringify(currentData.tasks) !== JSON.stringify(prevData.tasks) ||
+        JSON.stringify(currentData.currentRank) !==
+          JSON.stringify(prevData.currentRank)
+      );
+    };
+
+    // Функция для синхронизации данных с Firestore
+    const syncWithFirestore = async () => {
       const tasksToSave = tasks.map(({ action, ...rest }) => rest);
-      const userData: UserData = {
+      const userData: Partial<UserData> = {
         id: user.id,
         firstName: user.firstName,
         username: user.username,
@@ -448,7 +615,9 @@ function App() {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           await setDoc(userDocRef, userData, { merge: true });
-          console.log("Данные пользователя обновлены в Firestore");
+          console.log(
+            "Данные пользователя обновлены в Firestore (без перезаписи referals)"
+          );
           setUser((prev) => ({
             ...prev,
             tasks: tasksToSave,
@@ -458,9 +627,32 @@ function App() {
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
-    }, 3000);
+    };
 
-    return () => clearInterval(intervalId);
+    // Обновляем предыдущие данные
+    prevDataRef.current = { balance, tasks, currentRank };
+
+    // Если данные изменились, сбрасываем и устанавливаем новый таймер
+    if (hasDataChanged()) {
+      console.log("Данные изменились, планируем синхронизацию через 3 секунды");
+
+      // Сбрасываем предыдущий таймер, если он существует
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+
+      // Устанавливаем новый таймер на 3 секунды
+      syncTimeoutRef.current = setTimeout(() => {
+        syncWithFirestore();
+      }, 3000);
+    }
+
+    // Очистка таймера при размонтировании компонента
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
   }, [user, balance, tasks, currentRank]);
 
   return (

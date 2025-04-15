@@ -1,65 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./Earn.css";
 import { useNavigate } from "react-router-dom";
 import { Task, TaskData, UserData } from "../../Interfaces";
-
-// Определяем начальный список задач
-const initialTasks: Task[] = [
-  {
-    icon: "./assets/Quest1.png",
-    title: "Subscribe to Telegram",
-    description: "+15 PLGold",
-    button: "",
-    points: 15,
-    completed: false,
-    action: (balance, setBalance) => {
-      // Используем Telegram.WebApp.openLink вместо window.open
-      //@ts-ignore
-      if (window.Telegram?.WebApp) {
-        //@ts-ignore
-        window.Telegram.WebApp.openLink("https://t.me/PirateLife1721");
-      } else {
-        // Fallback для случаев, если Telegram API недоступен
-        window.open("https://t.me/PirateLife1721", "_blank");
-      }
-      return true; // Пока просто возвращаем true
-    },
-  },
-  {
-    icon: "./assets/Quest2.png",
-    title: "Invite 5 friends",
-    description: "+15 PLGold",
-    button: "",
-    points: 25,
-    completed: false,
-    action: (balance, setBalance, user, navigate) => {
-      if (user) {
-        if (user.referals && user.referals?.length < 5) {
-          navigate("/invite");
-          return false; // Задача не выполнена
-        } else if (user.referals && user.referals?.length >= 5) {
-          return true; // Задача выполнена
-        } else {
-          navigate("/invite");
-          return false; // Задача не выполнена
-        }
-      }
-      return false;
-    },
-  },
-  {
-    icon: "./assets/Quest3.png",
-    title: "Join instagram",
-    description: "+15 PLGold",
-    button: "",
-    points: 15,
-    completed: false,
-    action: (balance, setBalance) => {
-      window.open("https://www.instagram.com/piratelife_official/", "_blank");
-      return true; // Возвращаем true, чтобы отметить задачу как выполненную
-    },
-  },
-];
+import { db } from "../../../firebaseConfig";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface EarnProps {
   user: UserData;
@@ -72,23 +16,7 @@ interface EarnProps {
 function Earn({ balance, setBalance, user, tasks, setTasks }: EarnProps) {
   const navigate = useNavigate();
 
-  const syncTasksWithInitial = (firestoreTasks: TaskData[]): Task[] => {
-    return initialTasks.map((initialTask) => {
-      const firestoreTask = firestoreTasks.find(
-        (task) => task.title === initialTask.title
-      );
-      return firestoreTask
-        ? { ...initialTask, completed: firestoreTask.completed }
-        : initialTask;
-    });
-  };
-
-  React.useEffect(() => {
-    const syncedTasks = syncTasksWithInitial(user.tasks);
-    setTasks(syncedTasks);
-  }, [user.tasks, setTasks]); // Зависимость от user.tasks
-
-  const handleTaskClick = (task: Task, index: number) => {
+  const handleTaskClick = async (task: Task, index: number) => {
     if (task.completed) return;
 
     const shouldComplete = task.action(balance, setBalance, user, navigate);
@@ -98,6 +26,18 @@ function Earn({ balance, setBalance, user, tasks, setTasks }: EarnProps) {
         i === index ? { ...t, completed: true } : t
       );
       setTasks(updatedTasks);
+
+      // Обновляем задачи в Firestore
+      const tasksToSave = updatedTasks.map(({ action, ...rest }) => rest);
+      const userDocRef = doc(db, "userData", user.id);
+      try {
+        await updateDoc(userDocRef, {
+          tasks: tasksToSave,
+        });
+        console.log("Задачи обновлены в Firestore:", tasksToSave);
+      } catch (error) {
+        console.error("Ошибка при обновлении задач в Firestore:", error);
+      }
     }
   };
 
