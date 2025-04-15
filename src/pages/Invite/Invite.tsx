@@ -1,6 +1,8 @@
 import "./Invite.css";
 import React, { useState, useEffect } from "react";
 import { UserData, Referal } from "../../Interfaces";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../../firebaseConfig";
 
 interface InviteProps {
   user: UserData;
@@ -30,6 +32,33 @@ function Invite({ user }: InviteProps) {
         referralLink
       )}&text=Join me in this awesome game!`;
       window.open(telegramShareUrl, "_blank");
+    }
+  };
+
+  const getFriendFromId = async (
+    friendId: string
+  ): Promise<Partial<UserData> | null> => {
+    try {
+      const friendDocRef = doc(db, "userData", friendId);
+      const friendDoc = await getDoc(friendDocRef);
+
+      if (friendDoc.exists()) {
+        const friendData = friendDoc.data() as UserData;
+        return {
+          id: friendData.id,
+          firstName: friendData.firstName,
+          username: friendData.username,
+          photoUrl: friendData.photoUrl,
+          balance: friendData.balance,
+          rank: friendData.rank,
+        };
+      } else {
+        console.log(`Пользователь с ID ${friendId} не найден в Firestore`);
+        return null;
+      }
+    } catch (error) {
+      console.error("Ошибка при получении данных друга из Firestore:", error);
+      return null;
     }
   };
 
@@ -71,7 +100,12 @@ function Invite({ user }: InviteProps) {
         ) : (
           <ul className="referralsList">
             {referrals.map((referral, index) => (
-              <li key={index}>Friend ID: {referral.id}</li>
+              <li key={index}>
+                Player:{" "}
+                {getFriendFromId(referral.id).then((friend) => {
+                  return friend?.username || friend?.firstName;
+                })}
+              </li>
             ))}
           </ul>
         )}
