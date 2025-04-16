@@ -167,3 +167,15 @@
   font-size: 1.1rem;
   color: #d7b877;
 }
+@media (max-width: 460px) {
+  .statsPanel {
+    height: 300px;
+  }
+  .statsTitle {
+    font-size: 20px;
+    margin: 20px;
+  }
+  .topThree {
+    transform: scale(0.6);
+  }
+}
