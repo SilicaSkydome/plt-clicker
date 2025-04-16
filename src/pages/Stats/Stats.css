@@ -1,0 +1,169 @@
+.statsPage {
+  background-color: #1a1a1a;
+  color: #fff;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+.statsPanel {
+  background: #212324;
+
+  border: 1px solid;
+
+  border-image-source: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 2.78%,
+    #767041 50.42%,
+    rgba(102, 102, 102, 0) 100%
+  );
+  border-image-slice: 1;
+}
+.statsTitle {
+  font-family: "Le Major", "Forum";
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 150%;
+  text-align: center;
+  text-transform: capitalize;
+
+  color: #d7b877;
+  margin: 40px;
+}
+
+/* Топ-3 игроков */
+.topThree {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 40px;
+  z-index: 10;
+}
+
+.topPlayer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatarWrapper {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+.avatarWrapper::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border-radius: 50%;
+  background: linear-gradient(
+    132.09deg,
+    #ffea7b 8.17%,
+    rgba(255, 234, 123, 0) 57.35%,
+    #ffea7b 90.56%
+  );
+  z-index: -1;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 5px solid #212324;
+}
+
+.rankBadge {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  background-color: #ffd700;
+  color: #1a1a1a;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  border: 2px solid #1a1a1a;
+}
+
+.rank-1 {
+  order: 2;
+}
+.rank-2 {
+  order: 1;
+}
+.rank-3 {
+  order: 3;
+}
+
+/* Разное расположение для топ-3 */
+.rank-1 .avatarWrapper {
+  width: 120px;
+  height: 120px;
+  transform: translateY(-20px); /* Первый игрок выше */
+}
+.rank-1 .rankBadge {
+  bottom: -10px; /* Положение бейджа для первого игрока */
+}
+
+.playerName {
+  margin-top: 10px;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.playerBalance {
+  margin-top: 5px;
+  font-size: 1rem;
+  color: #ffd700;
+}
+
+/* Список остальных игроков */
+.statList {
+  max-width: 600px;
+  margin: 0 auto;
+  margin-top: 20px;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  background-color: #2a2a2a;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  gap: 15px;
+}
+
+.rank {
+  font-size: 1.2rem;
+  font-weight: bold;
+  width: 30px;
+  text-align: center;
+}
+
+.listAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.listName {
+  flex: 1;
+  text-align: left;
+  font-size: 1.1rem;
+}
+
+.listBalance {
+  font-size: 1.1rem;
+  color: #d7b877;
+}

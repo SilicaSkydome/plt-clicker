@@ -1,11 +1,67 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { db } from "../../../firebaseConfig"; // Импортируйте ваш Firestore
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import "./Stats.css";
 
+interface playerRank {
+  rank: number;
+  name: string;
+  balance: number;
+  avatar: string;
+}
+
 function Stats() {
+  const [players, setPlayers] = useState<playerRank[]>([]);
+
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      const q = query(collection(db, "userData"), orderBy("balance", "desc"));
+      const snapshot = await getDocs(q);
+      const playerData = snapshot.docs.map((doc, index) => ({
+        rank: index + 1,
+        name: doc.data().username || doc.data().firstName,
+        balance: doc.data().balance,
+        avatar: doc.data().photoUrl || "https://placehold.co/100",
+      }));
+      setPlayers(playerData);
+    };
+    fetchPlayers();
+  }, []);
+
+  const topThree = players.slice(0, 3);
+  const others = players.slice(3);
+
   return (
     <div className="statsPage">
-      <div className="topThree"></div>
-      <div className="statList"></div>
+      <div className="statsPanel">
+        <h1 className="statsTitle">STATS</h1>
+        <div className="topThree">
+          {topThree.map((player, index) => (
+            <div key={player.rank} className={`topPlayer rank-${player.rank}`}>
+              <div className="avatarWrapper">
+                <img src={player.avatar} alt={player.name} className="avatar" />
+                <div className="rankBadge">{player.rank}</div>
+              </div>
+              <p className="playerName">{player.name}</p>
+              <p className="playerBalance">{player.balance.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="statList">
+        {others.map((player) => (
+          <div key={player.rank} className="statItem">
+            <span className="rank">{player.rank}</span>
+            <img src={player.avatar} alt={player.name} className="listAvatar" />
+            <span className="listName">{player.name}</span>
+            <span className="listBalance">
+              Balance: <br />
+              {player.balance.toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
