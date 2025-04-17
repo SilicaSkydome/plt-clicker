@@ -8,8 +8,14 @@ interface InviteProps {
   user: UserData;
 }
 
+interface FriendData {
+  id: string;
+  name: string; // Will store username or firstName
+}
+
 function Invite({ user }: InviteProps) {
   const [referrals, setReferrals] = useState<Referal[]>([]);
+  const [friendsData, setFriendsData] = useState<FriendData[]>([]); // Store friend data
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
 
   // Получаем реферальную ссылку
@@ -63,23 +69,50 @@ function Invite({ user }: InviteProps) {
   };
 
   useEffect(() => {
-    // Проверяем, есть ли рефералы в localStorage
-    const cachedReferrals = localStorage.getItem(`referrals_${user.id}`);
-    if (cachedReferrals) {
-      setReferrals(JSON.parse(cachedReferrals));
-      setIsLoadingReferrals(false); // Устанавливаем isLoadingReferrals в false, если есть локальные данные
-    }
+    const fetchReferralsAndFriends = () => {
+      // Проверяем, есть ли рефералы в localStorage
+      const cachedReferrals = localStorage.getItem(`referrals_${user.id}`);
+      let referralsToUse = [];
+      if (cachedReferrals) {
+        referralsToUse = JSON.parse(cachedReferrals);
+        setReferrals(referralsToUse);
+      }
 
-    // Синхронизируем рефералов из user.referals (Firestore)
-    if (user.referals) {
-      setReferrals(user.referals);
-      setIsLoadingReferrals(false);
-      // Сохраняем рефералов в localStorage
-      localStorage.setItem(
-        `referrals_${user.id}`,
-        JSON.stringify(user.referals)
-      );
-    }
+      // Синхронизируем рефералов из user.referals (Firestore)
+      if (user.referals) {
+        referralsToUse = user.referals;
+        setReferrals(user.referals);
+        // Сохраняем рефералов в localStorage
+        localStorage.setItem(
+          `referrals_${user.id}`,
+          JSON.stringify(user.referals)
+        );
+      }
+
+      // Fetch friend data for all referrals
+      if (referralsToUse.length > 0) {
+        Promise.all(
+          referralsToUse.map((referral: Referal) =>
+            getFriendFromId(referral.id).then((friend) => ({
+              id: referral.id,
+              name: friend?.username || friend?.firstName || "Unknown",
+            }))
+          )
+        )
+          .then((friends) => {
+            setFriendsData(friends);
+            setIsLoadingReferrals(false);
+          })
+          .catch((error) => {
+            console.error("Error fetching friends:", error);
+            setIsLoadingReferrals(false);
+          });
+      } else {
+        setIsLoadingReferrals(false);
+      }
+    };
+
+    fetchReferralsAndFriends();
   }, [user.referals, user.id]);
 
   return (
@@ -99,14 +132,14 @@ function Invite({ user }: InviteProps) {
           <p>No referrals yet. Invite friends to earn rewards!</p>
         ) : (
           <ul className="referralsList">
-            {referrals.map((referral, index) => (
-              <li key={index}>
-                Player:{" "}
-                {getFriendFromId(referral.id).then((friend) => {
-                  return friend?.username || friend?.firstName;
-                })}
-              </li>
-            ))}
+            {referrals.map((referral, index) => {
+              const friend = friendsData.find((f) => f.id === referral.id);
+              return (
+                <li key={index}>
+                  Player: {friend ? friend.name : "Loading..."}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

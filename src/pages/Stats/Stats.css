@@ -5,6 +5,7 @@
   padding: 20px;
   font-family: Arial, sans-serif;
   text-align: center;
+  padding-bottom: 200px;
 
   overflow-y: scroll;
 }
@@ -131,7 +132,6 @@
   max-width: 600px;
   margin: 0 auto;
   margin-top: 20px;
-  margin-bottom: 80px;
 }
 
 .statItem {
