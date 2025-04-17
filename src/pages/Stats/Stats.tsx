@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../../../firebaseConfig"; // Импортируйте ваш Firestore
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import "./Stats.css";
 import top1 from "../../assets/img/top-1.png";
 import top2 from "../../assets/img/top-2.png";
@@ -18,7 +18,11 @@ function Stats() {
 
   useEffect(() => {
     const fetchPlayers = async () => {
-      const q = query(collection(db, "userData"), orderBy("balance", "desc"));
+      const q = query(
+        collection(db, "userData"),
+        orderBy("balance", "desc"),
+        limit(30)
+      );
       const snapshot = await getDocs(q);
       const playerData = snapshot.docs.map((doc, index) => ({
         rank: index + 1,
