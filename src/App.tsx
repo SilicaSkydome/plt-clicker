@@ -109,7 +109,7 @@ const initialTasks: Task[] = [
   {
     icon: "./assets/Quest2.png",
     title: "Invite 5 friends",
-    description: "+15 PLGold",
+    description: "+25 PLGold",
     button: "",
     points: 25,
     completed: false,
