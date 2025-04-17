@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { db } from "../../../firebaseConfig"; // Импортируйте ваш Firestore
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import "./Stats.css";
+import top1 from "../../assets/img/top-1.png";
+import top2 from "../../assets/img/top-2.png";
+import top3 from "../../assets/img/top-3.png";
 
 interface playerRank {
   rank: number;
@@ -40,7 +43,15 @@ function Stats() {
             <div key={player.rank} className={`topPlayer rank-${player.rank}`}>
               <div className="avatarWrapper">
                 <img src={player.avatar} alt={player.name} className="avatar" />
-                <div className="rankBadge">{player.rank}</div>
+                <div className="rankBadge">
+                  {player.rank === 1 ? (
+                    <img src={top1} alt="Gold Medal" className="medal" />
+                  ) : player.rank === 2 ? (
+                    <img src={top2} alt="Silver Medal" className="medal" />
+                  ) : player.rank === 3 ? (
+                    <img src={top3} alt="Bronze Medal" className="medal" />
+                  ) : null}
+                </div>
               </div>
               <p className="playerName">{player.name}</p>
               <p className="playerBalance">{player.balance.toLocaleString()}</p>
