@@ -11,6 +11,8 @@ interface InviteProps {
 interface FriendData {
   id: string;
   name: string; // Will store username or firstName
+  photoUrl?: string; // Optional, if you want to display the photo
+  rank?: string; // Optional, if you want to display the rank
 }
 
 function Invite({ user }: InviteProps) {
@@ -96,6 +98,8 @@ function Invite({ user }: InviteProps) {
             getFriendFromId(referral.id).then((friend) => ({
               id: referral.id,
               name: friend?.username || friend?.firstName || "Unknown",
+              photoUrl: friend?.photoUrl,
+              rank: friend?.rank,
             }))
           )
         )
@@ -136,7 +140,15 @@ function Invite({ user }: InviteProps) {
               const friend = friendsData.find((f) => f.id === referral.id);
               return (
                 <li key={index}>
-                  Player: {friend ? friend.name : "Loading..."}
+                  {friend ? (
+                    <div className="friendTile">
+                      <img src={friend.photoUrl} alt={friend.name} />
+                      <h3>{friend.name}</h3>
+                      <p>{friend.rank}</p>
+                    </div>
+                  ) : (
+                    "Loading..."
+                  )}
                 </li>
               );
             })}

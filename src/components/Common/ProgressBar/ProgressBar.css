@@ -5,27 +5,43 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+
+  position: relative;
 }
 
 .progressBar-container {
-  width: 50%;
-  height: 20px;
-  background-color: #e0e0e0; /* Серый фон для пустой части */
-  border-radius: 10px;
+  width: 90%;
+  height: 10px;
+  background-color: #846731; /* Серый фон для пустой части */
+  border-radius: 5px;
   overflow: hidden;
-  border: 2px solid #333; /* Темная обводка */
 }
 
 .progressBar-fill {
   height: 100%;
-  background-color: #ffd700; /* Золотой цвет для заполненной части */
+  background: linear-gradient(266.75deg, #f9d663 7.87%, #b48d0a 86.9%);
+
   transition: width 0.3s ease-in-out; /* Плавная анимация изменения прогресса */
 }
-
+.label-container {
+  position: relative;
+  width: 90%;
+  transform: translateY(-20px); /* Поднимаем текст над прогресс баром */
+}
 .progressBar-label {
+  position: absolute;
+  width: 31px;
+  height: 21px;
+  border-radius: 10px;
   text-align: center;
   margin-top: 5px;
-  font-size: 14px;
-  color: #ffffff; /* Белый цвет текста */
-  text-shadow: 1px 1px 2px #000000; /* Тень для текста */
+  font-size: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #0a0a0a;
+  background: linear-gradient(355.58deg, #f9d663 11.33%, #ffe99f 94.62%);
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
 }

@@ -7,7 +7,7 @@
   text-align: center;
   padding-bottom: 200px;
 
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 .statsPanel {
   background: #212324;

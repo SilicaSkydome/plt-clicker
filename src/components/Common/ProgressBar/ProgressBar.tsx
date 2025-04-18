@@ -37,17 +37,13 @@ function ProgressBar({ balance, currentRank, ranks }: ProgressBarProps) {
           style={{ width: `${progressInRank}%` }} // Динамически задаем ширину заполненной части
         />
       </div>
-      <div className="progressBar-label">
-        {nextRank ? (
-          // Если есть следующий ранг, показываем прогресс и сколько осталось
-          <>
-            {progressInRank.toFixed(0)}% / {goldToNextRank.toFixed(0)} to{" "}
-            {nextRank.title}
-          </>
-        ) : (
-          // Если игрок уже Captain, показываем только 100%
-          "100% / Captain Reached!"
-        )}
+      <div className="label-container">
+        <div
+          className="progressBar-label"
+          style={{ left: `${progressInRank}%` }}
+        >
+          {goldToNextRank.toFixed(0)}
+        </div>
       </div>
     </div>
   );

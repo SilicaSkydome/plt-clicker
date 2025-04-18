@@ -6,6 +6,7 @@
 
   position: relative;
   margin-top: 20px;
+  overflow-y: auto;
 }
 .inviteSection {
   display: flex;
@@ -117,4 +118,34 @@
   justify-content: start;
   align-items: center;
   gap: 10px;
+}
+.referralsList {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: stretch;
+  gap: 10px;
+
+  width: 70%;
+}
+.referralsList li {
+  list-style: none;
+}
+.friendTile {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+
+  background: #1f1f19;
+}
+.friendTile img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
 }
