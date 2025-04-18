@@ -173,7 +173,7 @@ function Invite({ user }: InviteProps) {
                   {friend ? (
                     <div className="friendTile">
                       <img
-                        src={friend.photoUrl || "/default-avatar.png"}
+                        src={friend.photoUrl || "https://placehold.co/40"}
                         alt={friend.name}
                       />
                       <h3>{friend.name}</h3>

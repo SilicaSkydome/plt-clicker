@@ -126,8 +126,9 @@
   justify-content: start;
   align-items: stretch;
   gap: 10px;
+  padding: 0;
 
-  width: 70%;
+  width: 90%;
 }
 .referralsList li {
   list-style: none;
@@ -144,6 +145,28 @@
   border-radius: 4px;
 
   background: #1f1f19;
+}
+.friendTile h3 {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 150%;
+  text-align: left;
+  text-transform: capitalize;
+
+  color: #d7b877;
+  margin: 0;
+}
+.friendTile p {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 150%;
+  text-align: left;
+  text-transform: capitalize;
+
+  color: #5e5e5e;
+  margin: 0;
 }
 .friendTile img {
   width: 40px;
