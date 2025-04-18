@@ -22,7 +22,7 @@ function Invite({ user }: InviteProps) {
 
   // Получаем реферальную ссылку
   const referralLink = user.id
-    ? `https://t.me/YourBotName?start=ref_${user.id}`
+    ? `https://t.me/pltc_bot?start=ref_${user.id}`
     : "";
 
   // Функция для копирования ссылки
