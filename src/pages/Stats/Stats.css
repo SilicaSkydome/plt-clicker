@@ -121,6 +121,11 @@
   font-weight: bold;
 }
 
+.playerRank {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
 .playerBalance {
   margin-top: 5px;
   font-size: 1rem;

@@ -5,9 +5,11 @@ import "./Stats.css";
 import top1 from "../../assets/img/top-1.png";
 import top2 from "../../assets/img/top-2.png";
 import top3 from "../../assets/img/top-3.png";
+import { Rank } from "../../Interfaces";
 
 interface playerRank {
   rank: number;
+  title: string;
   name: string;
   balance: number;
   avatar: string;
@@ -26,6 +28,7 @@ function Stats() {
       const snapshot = await getDocs(q);
       const playerData = snapshot.docs.map((doc, index) => ({
         rank: index + 1,
+        title: doc.data().rank?.title || "No Rank",
         name: doc.data().username || doc.data().firstName,
         balance: doc.data().balance,
         avatar: doc.data().photoUrl || "https://placehold.co/100",
@@ -58,6 +61,7 @@ function Stats() {
                 </div>
               </div>
               <p className="playerName">{player.name}</p>
+              <p className="playerRank">{player.title}</p>
               <p className="playerBalance">{player.balance.toLocaleString()}</p>
             </div>
           ))}
