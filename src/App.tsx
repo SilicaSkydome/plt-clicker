@@ -91,9 +91,9 @@ const initialTasks: Task[] = [
   {
     icon: "./assets/Quest1.png",
     title: "Subscribe to Telegram",
-    description: "+15 PLGold",
+    description: "+50 PLGold",
     button: "",
-    points: 15,
+    points: 50,
     completed: false,
     action: (balance, setBalance) => {
       //@ts-ignore
@@ -109,9 +109,9 @@ const initialTasks: Task[] = [
   {
     icon: "./assets/Quest2.png",
     title: "Invite 5 friends",
-    description: "+25 PLGold",
+    description: "+250 PLGold",
     button: "",
-    points: 25,
+    points: 250,
     completed: false,
     action: (balance, setBalance, user, navigate) => {
       if (user) {
@@ -131,9 +131,9 @@ const initialTasks: Task[] = [
   {
     icon: "./assets/Quest3.png",
     title: "Join instagram",
-    description: "+15 PLGold",
+    description: "+50 PLGold",
     button: "",
-    points: 15,
+    points: 50,
     completed: false,
     action: (balance, setBalance) => {
       window.open("https://www.instagram.com/piratelife_official/", "_blank");
