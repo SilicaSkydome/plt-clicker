@@ -10,14 +10,14 @@ interface InviteProps {
 
 interface FriendData {
   id: string;
-  name: string; // Will store username or firstName
-  photoUrl?: string; // Optional, if you want to display the photo
-  rank?: string; // Optional, if you want to display the rank
+  name: string;
+  photoUrl?: string | null;
+  rank?: string | null;
 }
 
 function Invite({ user }: InviteProps) {
   const [referrals, setReferrals] = useState<Referal[]>([]);
-  const [friendsData, setFriendsData] = useState<FriendData[]>([]); // Store friend data
+  const [friendsData, setFriendsData] = useState<FriendData[]>([]);
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
 
   // Получаем реферальную ссылку
@@ -25,12 +25,36 @@ function Invite({ user }: InviteProps) {
     ? `https://t.me/pltc_bot?start=ref_${user.id}`
     : "";
 
-  // Функция для копирования ссылки
-  const copyToClipboard = () => {
+  // Функция для копирования ссылки с запасным вариантом
+  const copyToClipboard = async () => {
     if (referralLink) {
-      navigator.clipboard.writeText(referralLink);
-      alert("Referral link copied to clipboard!");
+      if (navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(referralLink);
+          alert("Referral link copied to clipboard!");
+        } catch (error) {
+          console.error("Failed to copy to clipboard:", error);
+          fallbackCopyToClipboard(referralLink);
+        }
+      } else {
+        fallbackCopyToClipboard(referralLink);
+      }
     }
+  };
+
+  const fallbackCopyToClipboard = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand("copy");
+      alert("Referral link copied to clipboard!");
+    } catch (error) {
+      console.error("Fallback copy failed:", error);
+      alert("Failed to copy link. Please copy it manually.");
+    }
+    document.body.removeChild(textArea);
   };
 
   // Функция для отправки ссылки через Telegram
@@ -43,6 +67,7 @@ function Invite({ user }: InviteProps) {
     }
   };
 
+  // Получение данных друга из Firestore
   const getFriendFromId = async (
     friendId: string
   ): Promise<Partial<UserData> | null> => {
@@ -70,52 +95,57 @@ function Invite({ user }: InviteProps) {
     }
   };
 
-  useEffect(() => {
-    const fetchReferralsAndFriends = () => {
-      // Проверяем, есть ли рефералы в localStorage
-      const cachedReferrals = localStorage.getItem(`referrals_${user.id}`);
-      let referralsToUse = [];
-      if (cachedReferrals) {
-        referralsToUse = JSON.parse(cachedReferrals);
-        setReferrals(referralsToUse);
-      }
+  // Загрузка рефералов из localStorage
+  const loadCachedReferrals = () => {
+    const cachedReferrals = localStorage.getItem(`referrals_${user.id}`);
+    if (cachedReferrals) {
+      setReferrals(JSON.parse(cachedReferrals));
+    }
+  };
 
-      // Синхронизируем рефералов из user.referals (Firestore)
-      if (user.referals) {
-        referralsToUse = user.referals;
-        setReferrals(user.referals);
-        // Сохраняем рефералов в localStorage
-        localStorage.setItem(
-          `referrals_${user.id}`,
-          JSON.stringify(user.referals)
-        );
-      }
+  // Синхронизация рефералов из Firestore
+  const syncReferralsFromFirestore = () => {
+    if (user.referals && user.referals.length > 0) {
+      setReferrals(user.referals);
+      localStorage.setItem(
+        `referrals_${user.id}`,
+        JSON.stringify(user.referals)
+      );
+    }
+  };
 
-      // Fetch friend data for all referrals
-      if (referralsToUse.length > 0) {
-        Promise.all(
-          referralsToUse.map((referral: Referal) =>
-            getFriendFromId(referral.id).then((friend) => ({
-              id: referral.id,
-              name: friend?.username || friend?.firstName || "Unknown",
-              photoUrl: friend?.photoUrl,
-              rank: friend?.rank,
-            }))
-          )
+  // Получение данных друзей
+  const fetchFriendsData = async (referrals: Referal[]) => {
+    if (referrals.length === 0) {
+      setIsLoadingReferrals(false);
+      return;
+    }
+    try {
+      const friends = await Promise.all(
+        referrals.map((referral) =>
+          getFriendFromId(referral.id).then((friend) => ({
+            id: referral.id,
+            name: friend?.username || friend?.firstName || "Unknown",
+            photoUrl: friend?.photoUrl,
+            rank: friend?.rank ? String(friend.rank) : null,
+          }))
         )
-          .then((friends) => {
-            setFriendsData(friends);
-            setIsLoadingReferrals(false);
-          })
-          .catch((error) => {
-            console.error("Error fetching friends:", error);
-            setIsLoadingReferrals(false);
-          });
-      } else {
-        setIsLoadingReferrals(false);
-      }
-    };
+      );
+      setFriendsData(friends);
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    } finally {
+      setIsLoadingReferrals(false);
+    }
+  };
 
+  // Обработка загрузки рефералов и данных друзей
+  useEffect(() => {
+    const fetchReferralsAndFriends = async () => {
+      loadCachedReferrals();
+      syncReferralsFromFirestore();
+      await fetchFriendsData(user.referals || []);
+    };
     fetchReferralsAndFriends();
   }, [user.referals, user.id]);
 
@@ -130,21 +160,24 @@ function Invite({ user }: InviteProps) {
           <button onClick={shareViaTelegram}>Share via Telegram</button>
         </div>
         <h2>Your Referrals</h2>
-        {isLoadingReferrals && referrals.length === 0 ? (
+        {isLoadingReferrals ? (
           <p>Loading...</p>
         ) : referrals.length === 0 ? (
           <p>No referrals yet. Invite friends to earn rewards!</p>
         ) : (
           <ul className="referralsList">
-            {referrals.map((referral, index) => {
+            {referrals.map((referral) => {
               const friend = friendsData.find((f) => f.id === referral.id);
               return (
-                <li key={index}>
+                <li key={referral.id}>
                   {friend ? (
                     <div className="friendTile">
-                      <img src={friend.photoUrl} alt={friend.name} />
+                      <img
+                        src={friend.photoUrl || "/default-avatar.png"}
+                        alt={friend.name}
+                      />
                       <h3>{friend.name}</h3>
-                      <p>{friend.rank}</p>
+                      <p>{friend.rank || "No rank"}</p>
                     </div>
                   ) : (
                     "Loading..."
