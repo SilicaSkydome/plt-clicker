@@ -1,6 +1,6 @@
 import "./Invite.css";
 import React, { useState, useEffect } from "react";
-import { UserData, Referal } from "../../Interfaces";
+import { UserData, Referal, Rank } from "../../Interfaces";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
@@ -12,7 +12,7 @@ interface FriendData {
   id: string;
   name: string;
   photoUrl?: string | null;
-  rank?: string | null;
+  rank?: Rank | null;
 }
 
 function Invite({ user }: InviteProps) {
@@ -127,7 +127,7 @@ function Invite({ user }: InviteProps) {
             id: referral.id,
             name: friend?.username || friend?.firstName || "Unknown",
             photoUrl: friend?.photoUrl,
-            rank: friend?.rank ? String(friend.rank) : null,
+            rank: friend?.rank || null,
           }))
         )
       );
@@ -177,7 +177,9 @@ function Invite({ user }: InviteProps) {
                         alt={friend.name}
                       />
                       <h3>{friend.name}</h3>
-                      <p>{friend.rank || "No rank"}</p>
+                      <p>
+                        {friend.rank ? String(friend.rank.title) : "No rank"}
+                      </p>
                     </div>
                   ) : (
                     "Loading..."
