@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import React from "react";
 import chest from "../../assets/img/chestPlaceholder.webp";
@@ -35,13 +35,41 @@ interface ChestData {
   userId: string;
 }
 
+interface ClickEvent {
+  type: "boat" | "chest";
+  points: number;
+  chestId?: number; // Для сундуков
+}
+
 function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
+  const [clickQueue, setClickQueue] = useState<ClickEvent[]>([]); // Очередь кликов
 
   const telegramUserId =
     //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
+
+  // Обработка кликов из очереди
+  useEffect(() => {
+    if (clickQueue.length === 0) return;
+
+    const processClick = (click: ClickEvent) => {
+      setBalance((prev) => {
+        const newBalance = parseFloat((prev + click.points).toFixed(2));
+        console.log(
+          `Обновление баланса (${click.type}${
+            click.chestId !== undefined ? `, сундук ${click.chestId}` : ""
+          }): ${prev} + ${click.points} = ${newBalance}`
+        );
+        return newBalance;
+      });
+    };
+
+    // Обрабатываем все клики из очереди
+    clickQueue.forEach((click) => processClick(click));
+    setClickQueue([]); // Очищаем очередь
+  }, [clickQueue]);
 
   useEffect(() => {
     const baseWidth = window.innerWidth;
@@ -80,7 +108,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         update: update,
       },
       input: {
-        activePointers: 3, // Поддержка нескольких одновременных касаний
+        activePointers: 3,
       },
     };
 
@@ -147,6 +175,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
 
     function create(this: Phaser.Scene) {
       currentScene = this;
+      this.input.setPollAlways(); // Постоянный опрос событий
 
       const boat = this.add
         .image(baseWidth / 2, baseHeight / 2, "boat")
@@ -174,32 +203,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         console.log("Клик по кораблю зарегистрирован");
         const basePoints = 0.01;
         const points = basePoints + currentRank.clickBonus;
-        setBalance((prev) => {
-          const newBalance = parseFloat((prev + points).toFixed(2));
-          console.log(
-            `Обновление баланса (корабль): ${prev} + ${points} = ${newBalance}`
-          );
-          return newBalance;
-        });
-
-        const baseFontSize = 16;
-        const fontSize = baseFontSize * scaleFactor;
-        const plusText = currentScene!.add
-          .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
-            fontSize: `${fontSize}px`,
-            color: "#ffd700",
-          })
-          .setOrigin(0.5)
-          .setDepth(4);
-
-        const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
-        currentScene!.tweens.add({
-          targets: plusText,
-          y: targetY,
-          alpha: 0,
-          duration: 1000,
-          onComplete: () => plusText.destroy(),
-        });
+        setClickQueue((prev) => [...prev, { type: "boat", points }]);
       });
 
       loadChestData().then((savedChests) => {
@@ -357,13 +361,10 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         console.log(`Клик по сундуку ${id} зарегистрирован`);
         const basePoints = Phaser.Math.Between(3, 10);
         const points = basePoints + currentRank.clickBonus;
-        setBalance((prev) => {
-          const newBalance = parseFloat((prev + points).toFixed(2));
-          console.log(
-            `Обновление баланса (сундук ${id}): ${prev} + ${points} = ${newBalance}`
-          );
-          return newBalance;
-        });
+        setClickQueue((prev) => [
+          ...prev,
+          { type: "chest", points, chestId: id },
+        ]);
 
         const baseFontSize = 16;
         const fontSize = baseFontSize * scaleFactor;
@@ -402,10 +403,12 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
           lastSpawnTime: currentTime,
           userId: telegramUserId,
         };
-        // Сохраняем асинхронно, не дожидаясь завершения
-        saveChestData(chestToSave).catch((error) => {
-          console.error("Ошибка при сохранении сундука:", error);
-        });
+        console.log(
+          "Временно отключено сохранение сундука в Firestore для теста"
+        );
+        // saveChestData(chestToSave).catch((error) => {
+        //   console.error("Ошибка при сохранении сундука:", error);
+        // });
 
         const respawnTime = 1 * 30 * 1000;
         setTimeout(() => {
