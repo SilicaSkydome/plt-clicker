@@ -591,8 +591,16 @@ function App() {
     }
 
     const hasDataChanged = () => {
-      const currentData = { balance, tasks, currentRank };
-      const prevData = prevDataRef.current;
+      const currentData = {
+        balance: Number(balance.toFixed(2)),
+        tasks,
+        currentRank,
+      };
+      const prevData = {
+        balance: Number(prevDataRef.current.balance.toFixed(2)),
+        tasks: prevDataRef.current.tasks,
+        currentRank: prevDataRef.current.currentRank,
+      };
 
       const balanceChanged = currentData.balance !== prevData.balance;
       const tasksChanged =

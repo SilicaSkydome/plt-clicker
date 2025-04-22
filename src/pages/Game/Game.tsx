@@ -177,8 +177,8 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         const points = basePoints + currentRank.clickBonus;
         queueMicrotask(() => {
           setScore((prev) => {
-            const newScore = prev + points;
-            setBalance(newScore);
+            const newScore = parseFloat((prev + points).toFixed(2));
+            setBalance(Number(newScore));
 
             const baseFontSize = 16;
             const fontSize = baseFontSize * scaleFactor;

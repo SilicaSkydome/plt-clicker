@@ -21,7 +21,7 @@ function Earn({ balance, setBalance, user, tasks, setTasks }: EarnProps) {
 
     const shouldComplete = task.action(balance, setBalance, user, navigate);
     if (shouldComplete) {
-      setBalance(balance + task.points);
+      setBalance(parseFloat((balance + task.points).toFixed(2))); // Обновляем баланс пользователя
       const updatedTasks = tasks.map((t: Task, i: number) =>
         i === index ? { ...t, completed: true } : t
       );
