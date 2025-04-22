@@ -79,6 +79,9 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         create: create,
         update: update,
       },
+      input: {
+        activePointers: 3, // Поддержка нескольких одновременных касаний
+      },
     };
 
     let currentScene: Phaser.Scene | null = null;
@@ -147,7 +150,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
 
       const boat = this.add
         .image(baseWidth / 2, baseHeight / 2, "boat")
-        .setInteractive()
+        .setInteractive({ useHandCursor: true, pixelPerfect: true })
         .setDepth(2) as Phaser.GameObjects.Image;
 
       const boatTexture = this.textures
@@ -168,10 +171,16 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       });
 
       boat.on("pointerdown", () => {
+        console.log("Клик по кораблю зарегистрирован");
         const basePoints = 0.01;
         const points = basePoints + currentRank.clickBonus;
-        const newBalance = parseFloat((balance + points).toFixed(2));
-        setBalance(newBalance);
+        setBalance((prev) => {
+          const newBalance = parseFloat((prev + points).toFixed(2));
+          console.log(
+            `Обновление баланса (корабль): ${prev} + ${points} = ${newBalance}`
+          );
+          return newBalance;
+        });
 
         const baseFontSize = 16;
         const fontSize = baseFontSize * scaleFactor;
@@ -280,7 +289,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
     ) {
       const chest = scene.add
         .sprite(x, y, "chest")
-        .setInteractive()
+        .setInteractive({ useHandCursor: true, pixelPerfect: true })
         .setScale(0)
         .setDepth(3)
         .setActive(true) as Phaser.GameObjects.Sprite;
@@ -344,11 +353,17 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       const chestEntry = { chest, rings, x, y, id };
       chestData.push(chestEntry);
 
-      chest.on("pointerdown", async () => {
+      chest.on("pointerdown", () => {
+        console.log(`Клик по сундуку ${id} зарегистрирован`);
         const basePoints = Phaser.Math.Between(3, 10);
         const points = basePoints + currentRank.clickBonus;
-        const newBalance = balance + points;
-        setBalance(newBalance);
+        setBalance((prev) => {
+          const newBalance = parseFloat((prev + points).toFixed(2));
+          console.log(
+            `Обновление баланса (сундук ${id}): ${prev} + ${points} = ${newBalance}`
+          );
+          return newBalance;
+        });
 
         const baseFontSize = 16;
         const fontSize = baseFontSize * scaleFactor;
@@ -387,7 +402,10 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
           lastSpawnTime: currentTime,
           userId: telegramUserId,
         };
-        await saveChestData(chestToSave);
+        // Сохраняем асинхронно, не дожидаясь завершения
+        saveChestData(chestToSave).catch((error) => {
+          console.error("Ошибка при сохранении сундука:", error);
+        });
 
         const respawnTime = 1 * 30 * 1000;
         setTimeout(() => {
