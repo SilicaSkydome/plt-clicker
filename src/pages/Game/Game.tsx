@@ -38,17 +38,49 @@ interface ChestData {
 interface ClickEvent {
   type: "boat" | "chest";
   points: number;
-  chestId?: number; // Для сундуков
+  chestId?: number;
 }
 
 function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
-  const [clickQueue, setClickQueue] = useState<ClickEvent[]>([]); // Очередь кликов
+  const [clickQueue, setClickQueue] = useState<ClickEvent[]>([]);
 
   const telegramUserId =
     //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
+
+  // Очередь для сохранения сундуков
+  const saveQueueRef = useRef<ChestData[]>([]);
+  const isSavingRef = useRef(false);
+
+  // Функция для сохранения сундуков с использованием очереди
+  const saveChestData = async (chest: ChestData) => {
+    saveQueueRef.current.push(chest);
+    console.log(
+      `Сундук ${chest.id} добавлен в очередь на сохранение. Текущая длина очереди: ${saveQueueRef.current.length}`
+    );
+
+    if (isSavingRef.current) return; // Если уже идёт сохранение, ждём
+
+    isSavingRef.current = true;
+    while (saveQueueRef.current.length > 0) {
+      const nextChest = saveQueueRef.current[0];
+      try {
+        const chestDocRef = doc(
+          db,
+          "chests",
+          `${telegramUserId}_${nextChest.id}`
+        );
+        await setDoc(chestDocRef, nextChest);
+        console.log(`Сундук ${nextChest.id} успешно сохранён в Firestore`);
+      } catch (error) {
+        console.error(`Ошибка при сохранении сундука ${nextChest.id}:`, error);
+      }
+      saveQueueRef.current.shift();
+    }
+    isSavingRef.current = false;
+  };
 
   // Обработка кликов из очереди
   useEffect(() => {
@@ -66,9 +98,8 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       });
     };
 
-    // Обрабатываем все клики из очереди
     clickQueue.forEach((click) => processClick(click));
-    setClickQueue([]); // Очищаем очередь
+    setClickQueue([]);
   }, [clickQueue]);
 
   useEffect(() => {
@@ -156,15 +187,6 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       }
     }
 
-    async function saveChestData(chest: ChestData) {
-      try {
-        const chestDocRef = doc(db, "chests", `${telegramUserId}_${chest.id}`);
-        await setDoc(chestDocRef, chest);
-      } catch (error) {
-        console.error("Error saving chest data:", error);
-      }
-    }
-
     function preload(this: Phaser.Scene) {
       this.load.image("chest", chest);
       this.load.image("ring1", ring1);
@@ -175,7 +197,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
 
     function create(this: Phaser.Scene) {
       currentScene = this;
-      this.input.setPollAlways(); // Постоянный опрос событий
+      this.input.setPollAlways();
 
       const boat = this.add
         .image(baseWidth / 2, baseHeight / 2, "boat")
@@ -403,12 +425,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
           lastSpawnTime: currentTime,
           userId: telegramUserId,
         };
-        console.log(
-          "Временно отключено сохранение сундука в Firestore для теста"
-        );
-        // saveChestData(chestToSave).catch((error) => {
-        //   console.error("Ошибка при сохранении сундука:", error);
-        // });
+        saveChestData(chestToSave);
 
         const respawnTime = 1 * 30 * 1000;
         setTimeout(() => {
