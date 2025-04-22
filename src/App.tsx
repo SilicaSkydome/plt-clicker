@@ -597,6 +597,7 @@ function App() {
     };
 
     const syncWithFirestore = async () => {
+      console.log("Синхронизация с Firestore...");
       if (balance < 0) {
         console.warn(
           "Баланс не может быть отрицательным, пропускаем синхронизацию"
