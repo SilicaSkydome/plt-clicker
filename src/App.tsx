@@ -258,6 +258,7 @@ function App() {
   const [pendingBalanceDelta, setPendingBalanceDelta] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
+  const [isLocalUpdate, setIsLocalUpdate] = useState<boolean>(false); // Флаг для локальных изменений
 
   const prevDataRef = useRef({
     balance: 0,
@@ -265,6 +266,7 @@ function App() {
     currentRank: RANKS[0],
   });
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const firestoreDataRef = useRef<UserData | null>(null); // Храним последние данные из Firestore
 
   const setBalance: React.Dispatch<React.SetStateAction<number>> = (
     value: number | ((prev: number) => number)
@@ -275,6 +277,7 @@ function App() {
       const delta = newBalance - balance;
       setPendingBalanceDelta((prev) => prev + delta);
       setBalanceState(newBalance);
+      setIsLocalUpdate(true); // Указываем, что это локальное изменение
     }
   };
 
@@ -429,6 +432,7 @@ function App() {
     }
   }, [user.id]);
 
+  // Эффект для получения данных из Firestore
   useEffect(() => {
     console.log("useEffect для получения данных из Firestore (onSnapshot)", {
       userId: user.id,
@@ -452,48 +456,6 @@ function App() {
     }
 
     const userDocRef = doc(db, "userData", user.id);
-    const debouncedUpdate = debounce((userDataFromDb: UserData) => {
-      const firestoreBalance = userDataFromDb.balance || 0;
-      const adjustedBalance = firestoreBalance + pendingBalanceDelta;
-      if (balance !== adjustedBalance) {
-        console.log("Обновляем balance из Firestore с учетом дельты:", {
-          firestoreBalance,
-          pendingBalanceDelta,
-          adjustedBalance,
-        });
-        setBalance(adjustedBalance);
-      }
-
-      const newRank = userDataFromDb.rank || RANKS[0];
-      if (JSON.stringify(currentRank) !== JSON.stringify(newRank)) {
-        console.log("Обновляем currentRank из Firestore:", newRank);
-        setCurrentRank(newRank);
-      }
-
-      const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
-      if (JSON.stringify(tasks) !== JSON.stringify(mappedTasks)) {
-        console.log("Обновляем tasks из Firestore:", mappedTasks);
-        setTasks(mappedTasks);
-      }
-
-      const updatedReferals = userDataFromDb.referals || [];
-      if (JSON.stringify(user.referals) !== JSON.stringify(updatedReferals)) {
-        console.log("Обновляем referals из Firestore:", updatedReferals);
-        setUser((prev) => {
-          localStorage.setItem(
-            `referrals_${user.id}`,
-            JSON.stringify(updatedReferals)
-          );
-          return {
-            ...prev,
-            tasks: userDataFromDb.tasks || [],
-            referals: updatedReferals,
-            rank: userDataFromDb.rank || RANKS[0],
-          };
-        });
-      }
-    }, 1000);
-
     const unsubscribe = onSnapshot(
       userDocRef,
       (doc) => {
@@ -503,7 +465,7 @@ function App() {
             "Данные пользователя обновлены из Firestore:",
             userDataFromDb
           );
-          debouncedUpdate(userDataFromDb);
+          firestoreDataRef.current = userDataFromDb; // Сохраняем данные, но не обновляем состояние напрямую
         } else {
           console.log("Документ пользователя не существует в Firestore");
         }
@@ -515,9 +477,54 @@ function App() {
 
     return () => {
       unsubscribe();
-      debouncedUpdate.cancel();
     };
   }, [user.id]);
+
+  // Эффект для обработки данных из Firestore
+  useEffect(() => {
+    if (!firestoreDataRef.current || isLocalUpdate) return; // Игнорируем, если есть локальные изменения
+
+    const userDataFromDb = firestoreDataRef.current;
+    const firestoreBalance = userDataFromDb.balance || 0;
+    const adjustedBalance = firestoreBalance + pendingBalanceDelta;
+    if (balance !== adjustedBalance) {
+      console.log("Обновляем balance из Firestore с учетом дельты:", {
+        firestoreBalance,
+        pendingBalanceDelta,
+        adjustedBalance,
+      });
+      setBalance(adjustedBalance);
+    }
+
+    const newRank = userDataFromDb.rank || RANKS[0];
+    if (JSON.stringify(currentRank) !== JSON.stringify(newRank)) {
+      console.log("Обновляем currentRank из Firestore:", newRank);
+      setCurrentRank(newRank);
+    }
+
+    const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
+    if (JSON.stringify(tasks) !== JSON.stringify(mappedTasks)) {
+      console.log("Обновляем tasks из Firestore:", mappedTasks);
+      setTasks(mappedTasks);
+    }
+
+    const updatedReferals = userDataFromDb.referals || [];
+    if (JSON.stringify(user.referals) !== JSON.stringify(updatedReferals)) {
+      console.log("Обновляем referals из Firestore:", updatedReferals);
+      setUser((prev) => {
+        localStorage.setItem(
+          `referrals_${user.id}`,
+          JSON.stringify(updatedReferals)
+        );
+        return {
+          ...prev,
+          tasks: userDataFromDb.tasks || [],
+          referals: updatedReferals,
+          rank: userDataFromDb.rank || RANKS[0],
+        };
+      });
+    }
+  }, [firestoreDataRef.current, isLocalUpdate]);
 
   const getUserData = async (userData: UserData) => {
     try {
@@ -612,14 +619,13 @@ function App() {
         }
       } else {
         console.log(`Пользователь с ID ${referrerId} не найден в Firestore`);
-        // Можно создать нового пользователя с referrerId, если это ожидаемое поведение
         const newReferrer: UserData = {
           id: referrerId,
           firstName: "Unknown",
           username: "",
           lastInteraction: new Date().toISOString(),
           photoUrl: "",
-          balance: 100, // Даем бонус за реферала
+          balance: 100,
           tasks: [],
           referals: [{ id: newUserId }],
           rank: RANKS[0],
@@ -634,6 +640,7 @@ function App() {
     }
   };
 
+  // Эффект для синхронизации данных с Firestore
   useEffect(() => {
     if (!user.id || user.id === "test_user_123") {
       console.log("Тестовый пользователь, синхронизация с Firestore отключена");
@@ -706,6 +713,7 @@ function App() {
           userData
         );
         setPendingBalanceDelta(0);
+        setIsLocalUpdate(false); // Сбрасываем флаг после синхронизации
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
