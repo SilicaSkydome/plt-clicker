@@ -96,7 +96,7 @@ const initialTasks: Task[] = [
     button: "",
     points: 50,
     completed: false,
-    action: (balance, setBalance) => {
+    action: (balance: number, setBalance: (value: number) => void) => {
       //@ts-ignore
       if (window.Telegram?.WebApp) {
         //@ts-ignore
@@ -114,7 +114,12 @@ const initialTasks: Task[] = [
     button: "",
     points: 250,
     completed: false,
-    action: (balance, setBalance, user, navigate) => {
+    action: (
+      balance: number,
+      setBalance: (value: number) => void,
+      user: UserData | null,
+      navigate: (path: string) => void
+    ) => {
       if (user) {
         if (user.referals && user.referals?.length < 5) {
           navigate("/invite");
@@ -136,7 +141,7 @@ const initialTasks: Task[] = [
     button: "",
     points: 50,
     completed: false,
-    action: (balance, setBalance) => {
+    action: (balance: number, setBalance: (value: number) => void) => {
       window.open("https://www.instagram.com/piratelife_official/", "_blank");
       return true;
     },
@@ -155,7 +160,7 @@ const determineRank = (gold: number): Rank => {
   return RANKS[0];
 };
 
-const testUser = {
+const testUser: UserData = {
   id: "test_user_123",
   firstName: "Test",
   username: "testuser",
@@ -171,7 +176,7 @@ interface AppContentProps {
   user: UserData;
   isLoading: boolean;
   balance: number;
-  setBalance: (balance: number) => void;
+  setBalance: React.Dispatch<React.SetStateAction<number>>;
   tasks: Task[];
   setTasks: (tasks: Task[]) => void;
   currentRank: Rank;
@@ -250,27 +255,29 @@ function App() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalanceState] = useState<number>(0);
+  const [pendingBalanceDelta, setPendingBalanceDelta] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
 
-  // Храним предыдущие данные для сравнения
   const prevDataRef = useRef({
     balance: 0,
     tasks: [] as Task[],
     currentRank: RANKS[0],
   });
-  // Храним таймер для задержки синхронизации
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Добавляем логирование для setBalance
-  const setBalance = (newBalance: number) => {
+  const setBalance: React.Dispatch<React.SetStateAction<number>> = (
+    value: number | ((prev: number) => number)
+  ) => {
+    const newBalance = typeof value === "function" ? value(balance) : value;
     if (balance !== newBalance) {
       console.log("Обновление баланса:", { oldBalance: balance, newBalance });
+      const delta = newBalance - balance;
+      setPendingBalanceDelta((prev) => prev + delta);
       setBalanceState(newBalance);
     }
   };
 
-  // Функция для преобразования TaskData[] в Task[]
   const mapTasksFromFirestore = (firestoreTasks: TaskData[]): Task[] => {
     return initialTasks.map((initialTask) => {
       const firestoreTask = firestoreTasks.find(
@@ -380,7 +387,6 @@ function App() {
     initializeUser();
   }, []);
 
-  // Эффект для обработки start_param и команды /start
   useEffect(() => {
     const app = (window as any).Telegram?.WebApp;
 
@@ -423,7 +429,6 @@ function App() {
     }
   }, [user.id]);
 
-  // Эффект для получения данных из Firestore
   useEffect(() => {
     console.log("useEffect для получения данных из Firestore (onSnapshot)", {
       userId: user.id,
@@ -448,9 +453,15 @@ function App() {
 
     const userDocRef = doc(db, "userData", user.id);
     const debouncedUpdate = debounce((userDataFromDb: UserData) => {
-      if (balance !== (userDataFromDb.balance || 0)) {
-        console.log("Обновляем balance из Firestore:", userDataFromDb.balance);
-        setBalance(userDataFromDb.balance || 0);
+      const firestoreBalance = userDataFromDb.balance || 0;
+      const adjustedBalance = firestoreBalance + pendingBalanceDelta;
+      if (balance !== adjustedBalance) {
+        console.log("Обновляем balance из Firestore с учетом дельты:", {
+          firestoreBalance,
+          pendingBalanceDelta,
+          adjustedBalance,
+        });
+        setBalance(adjustedBalance);
       }
 
       const newRank = userDataFromDb.rank || RANKS[0];
@@ -592,7 +603,7 @@ function App() {
                 balance: (prev.balance || 0) + 100,
               };
             });
-            setBalance(balance + 100);
+            setBalance((prev) => prev + 100);
           }
         } else {
           console.log(
@@ -601,13 +612,28 @@ function App() {
         }
       } else {
         console.log(`Пользователь с ID ${referrerId} не найден в Firestore`);
+        // Можно создать нового пользователя с referrerId, если это ожидаемое поведение
+        const newReferrer: UserData = {
+          id: referrerId,
+          firstName: "Unknown",
+          username: "",
+          lastInteraction: new Date().toISOString(),
+          photoUrl: "",
+          balance: 100, // Даем бонус за реферала
+          tasks: [],
+          referals: [{ id: newUserId }],
+          rank: RANKS[0],
+        };
+        await setDoc(referrerRef, newReferrer);
+        console.log(
+          `Создан новый пользователь с ID ${referrerId} с рефералом ${newUserId}`
+        );
       }
     } catch (error) {
       console.error("Ошибка при обработке реферала:", error);
     }
   };
 
-  // Эффект для синхронизации данных с Firestore только при локальных изменениях
   useEffect(() => {
     if (!user.id || user.id === "test_user_123") {
       console.log("Тестовый пользователь, синхронизация с Firestore отключена");
@@ -679,6 +705,7 @@ function App() {
           "Данные пользователя успешно обновлены в Firestore",
           userData
         );
+        setPendingBalanceDelta(0);
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
@@ -686,7 +713,7 @@ function App() {
 
     if (hasDataChanged()) {
       console.log("Данные изменились, планируем синхронизацию");
-      const debouncedSync = debounce(syncWithFirestore, 1000);
+      const debouncedSync = debounce(syncWithFirestore, 500);
       debouncedSync();
     }
 
