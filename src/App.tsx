@@ -252,6 +252,7 @@ function App() {
   const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
+  const [isUpdatingFromFirestore, setIsUpdatingFromFirestore] = useState(false);
 
   // Храним предыдущие данные для сравнения
   const prevDataRef = useRef({
@@ -282,8 +283,10 @@ function App() {
 
   useEffect(() => {
     const newRank = determineRank(balance);
-    setCurrentRank(newRank);
-    setUser((prev) => ({ ...prev, rank: newRank }));
+    if (JSON.stringify(newRank) !== JSON.stringify(currentRank)) {
+      setCurrentRank(newRank);
+      setUser((prev) => ({ ...prev, rank: newRank }));
+    }
   }, [balance]);
 
   useEffect(() => {
@@ -419,15 +422,14 @@ function App() {
     }
   }, [user.id]);
 
-  // Эффект для синхронизации с Firestore в реальном времени
+  // Эффект для получения данных из Firestore
   useEffect(() => {
-    console.log("useEffect для синхронизации вызван (onSnapshot)", {
+    console.log("useEffect для получения данных из Firestore (onSnapshot)", {
       userId: user.id,
       balance,
       tasks: tasks.map((t) => t.title),
       currentRank: currentRank.title,
     });
-    // Проверяем, что user.id существует и не является тестовым пользователем
     if (!user.id || user.id === "test_user_123") return;
 
     console.log(
@@ -446,7 +448,7 @@ function App() {
 
     const userDocRef = doc(db, "userData", user.id);
     const debouncedUpdate = debounce((userDataFromDb: UserData) => {
-      // Проверяем, изменились ли данные, чтобы избежать лишних обновлений
+      setIsUpdatingFromFirestore(true);
       if (balance !== (userDataFromDb.balance || 0)) {
         console.log("Обновляем balance из Firestore:", userDataFromDb.balance);
         setBalance(userDataFromDb.balance || 0);
@@ -480,6 +482,7 @@ function App() {
           };
         });
       }
+      setIsUpdatingFromFirestore(false);
     }, 500);
 
     const unsubscribe = onSnapshot(
@@ -491,7 +494,6 @@ function App() {
             "Данные пользователя обновлены из Firestore:",
             userDataFromDb
           );
-          console.log("Обновленный массив рефералов:", userDataFromDb.referals);
           debouncedUpdate(userDataFromDb);
         } else {
           console.log("Документ пользователя не существует в Firestore");
@@ -523,7 +525,6 @@ function App() {
           referals: userDataFromDb.referals || [],
           rank: userDataFromDb.rank || RANKS[0],
         }));
-        // Преобразуем TaskData[] в Task[]
         const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
         setTasks(mappedTasks);
       } else {
@@ -542,7 +543,7 @@ function App() {
         await setDoc(userDocRef, newUser);
         setBalance(0);
         setCurrentRank(RANKS[0]);
-        setTasks(initialTasks); // Инициализируем задачи из initialTasks
+        setTasks(initialTasks);
       }
     } catch (error) {
       console.error("Ошибка при получении данных из Firestore:", error);
@@ -583,7 +584,6 @@ function App() {
                 return prev;
               }
               const updatedReferals = [...currentReferals, newReferral];
-              // Сохраняем рефералов в localStorage
               localStorage.setItem(
                 `referrals_${user.id}`,
                 JSON.stringify(updatedReferals)
@@ -594,7 +594,7 @@ function App() {
                 balance: (prev.balance || 0) + 100,
               };
             });
-            setBalanceState((prev) => prev + 100);
+            setBalance(balance + 100);
           }
         } else {
           console.log(
@@ -609,10 +609,15 @@ function App() {
     }
   };
 
-  // Эффект для синхронизации данных с Firestore только при изменении
+  // Эффект для синхронизации данных с Firestore только при локальных изменениях
   useEffect(() => {
     if (!user.id || user.id === "test_user_123") {
       console.log("Тестовый пользователь, синхронизация с Firestore отключена");
+      return;
+    }
+
+    if (isUpdatingFromFirestore) {
+      console.log("Обновление из Firestore, пропускаем синхронизацию");
       return;
     }
 
@@ -686,17 +691,14 @@ function App() {
       }
     };
 
-    // Проверяем изменения перед обновлением prevDataRef
     if (hasDataChanged()) {
       console.log("Данные изменились, планируем синхронизацию");
       const debouncedSync = debounce(syncWithFirestore, 500);
       debouncedSync();
     }
 
-    // Обновляем prevDataRef после проверки изменений
     prevDataRef.current = { balance, tasks, currentRank };
 
-    // Очистка при размонтировании
     return () => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
