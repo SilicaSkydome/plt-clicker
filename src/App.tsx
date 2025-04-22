@@ -6,6 +6,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
+import { debounce } from "lodash";
 import Game from "./pages/Game/Game";
 import Stats from "./pages/Stats/Stats";
 import Invite from "./pages/Invite/Invite";
@@ -248,7 +249,7 @@ function App() {
     rank: RANKS[0],
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [balance, setBalance] = useState<number>(0);
+  const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
 
@@ -260,6 +261,12 @@ function App() {
   });
   // Храним таймер для задержки синхронизации
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Добавляем логирование для setBalance
+  const setBalance = (newBalance: number) => {
+    console.log("Обновление баланса:", { oldBalance: balance, newBalance });
+    setBalanceState(newBalance);
+  };
 
   // Функция для преобразования TaskData[] в Task[]
   const mapTasksFromFirestore = (firestoreTasks: TaskData[]): Task[] => {
@@ -340,6 +347,7 @@ function App() {
           }
         }
 
+        console.log("Инициализированный пользователь:", userData);
         setUser(userData);
 
         if (!isTestUser) {
@@ -568,7 +576,7 @@ function App() {
                 balance: (prev.balance || 0) + 100,
               };
             });
-            setBalance((prev) => prev + 100);
+            setBalanceState((prev: number) => prev + 100);
           }
         } else {
           console.log(
@@ -633,7 +641,6 @@ function App() {
         return;
       }
 
-      // Получаем текущие рефералы из состояния
       const tasksToSave = tasks.map(({ action, ...rest }) => rest);
       const userData: Partial<UserData> = {
         id: user.id,
@@ -643,39 +650,35 @@ function App() {
         photoUrl: user.photoUrl,
         balance: balance,
         tasks: tasksToSave,
-        referals: user.referals || [], // Явно включаем рефералов
+        referals: user.referals || [],
         rank: currentRank,
       };
 
       const userDocRef = doc(db, "userData", user.id);
       try {
-        // Используем setDoc с merge для обновления только измененных полей
+        const docSnap = await getDoc(userDocRef);
+        console.log("Документ существует:", docSnap.exists());
         await setDoc(userDocRef, userData, { merge: true });
-        console.log("Данные пользователя успешно обновлены в Firestore");
+        console.log(
+          "Данные пользователя успешно обновлены в Firestore",
+          userData
+        );
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
     };
 
-    // Обновляем предыдущие данные
-    prevDataRef.current = { balance, tasks, currentRank };
-
-    // Если данные изменились, сбрасываем и устанавливаем новый таймер
+    // Проверяем изменения перед обновлением prevDataRef
     if (hasDataChanged()) {
-      console.log("Данные изменились, планируем синхронизацию через 3 секунды");
-
-      // Сбрасываем предыдущий таймер, если он существует
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
-
-      // Устанавливаем новый таймер на 3 секунды
-      syncTimeoutRef.current = setTimeout(() => {
-        syncWithFirestore();
-      }, 3000);
+      console.log("Данные изменились, планируем синхронизацию");
+      const debouncedSync = debounce(syncWithFirestore, 500);
+      debouncedSync();
     }
 
-    // Очистка таймера при размонтировании компонента
+    // Обновляем prevDataRef после проверки изменений
+    prevDataRef.current = { balance, tasks, currentRank };
+
+    // Очистка при размонтировании
     return () => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
