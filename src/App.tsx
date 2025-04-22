@@ -596,8 +596,15 @@ function App() {
       );
     };
 
-    // Функция для синхронизации данных с Firestore
     const syncWithFirestore = async () => {
+      if (balance < 0) {
+        console.warn(
+          "Баланс не может быть отрицательным, пропускаем синхронизацию"
+        );
+        return;
+      }
+
+      // Получаем текущие рефералы из состояния
       const tasksToSave = tasks.map(({ action, ...rest }) => rest);
       const userData: Partial<UserData> = {
         id: user.id,
@@ -607,23 +614,15 @@ function App() {
         photoUrl: user.photoUrl,
         balance: balance,
         tasks: tasksToSave,
+        referals: user.referals || [], // Явно включаем рефералов
         rank: currentRank,
       };
 
       const userDocRef = doc(db, "userData", user.id);
       try {
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          await setDoc(userDocRef, userData, { merge: true });
-          console.log(
-            "Данные пользователя обновлены в Firestore (без перезаписи referals)"
-          );
-          setUser((prev) => ({
-            ...prev,
-            tasks: tasksToSave,
-            rank: currentRank,
-          }));
-        }
+        // Используем setDoc с merge для обновления только измененных полей
+        await setDoc(userDocRef, userData, { merge: true });
+        console.log("Данные пользователя успешно обновлены в Firestore");
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
