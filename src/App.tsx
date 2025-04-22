@@ -413,6 +413,13 @@ function App() {
 
   // Эффект для синхронизации с Firestore в реальном времени
   useEffect(() => {
+    console.log("useEffect для синхронизации вызван", {
+      userId: user.id,
+      balance,
+      tasks: tasks.map((t) => t.title),
+      currentRank: currentRank.title,
+    });
+    // Проверяем, что user.id существует и не является тестовым пользователем
     if (!user.id || user.id === "test_user_123") return;
 
     console.log(
@@ -583,17 +590,30 @@ function App() {
       return;
     }
 
-    // Функция для проверки изменений данных
     const hasDataChanged = () => {
       const currentData = { balance, tasks, currentRank };
       const prevData = prevDataRef.current;
 
-      return (
-        currentData.balance !== prevData.balance ||
-        JSON.stringify(currentData.tasks) !== JSON.stringify(prevData.tasks) ||
+      const balanceChanged = currentData.balance !== prevData.balance;
+      const tasksChanged =
+        JSON.stringify(currentData.tasks) !== JSON.stringify(prevData.tasks);
+      const rankChanged =
         JSON.stringify(currentData.currentRank) !==
-          JSON.stringify(prevData.currentRank)
-      );
+        JSON.stringify(prevData.currentRank);
+
+      console.log("Проверка изменений данных:", {
+        balanceChanged,
+        tasksChanged,
+        rankChanged,
+        currentBalance: currentData.balance,
+        prevBalance: prevData.balance,
+        currentTasks: currentData.tasks.map((t) => t.title),
+        prevTasks: prevData.tasks.map((t) => t.title),
+        currentRank: currentData.currentRank.title,
+        prevRank: prevData.currentRank.title,
+      });
+
+      return balanceChanged || tasksChanged || rankChanged;
     };
 
     const syncWithFirestore = async () => {
