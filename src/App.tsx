@@ -421,7 +421,7 @@ function App() {
 
   // Эффект для синхронизации с Firestore в реальном времени
   useEffect(() => {
-    console.log("useEffect для синхронизации вызван", {
+    console.log("useEffect для синхронизации вызван (onSnapshot)", {
       userId: user.id,
       balance,
       tasks: tasks.map((t) => t.title),
@@ -445,6 +445,43 @@ function App() {
     }
 
     const userDocRef = doc(db, "userData", user.id);
+    const debouncedUpdate = debounce((userDataFromDb: UserData) => {
+      // Проверяем, изменились ли данные, чтобы избежать лишних обновлений
+      if (balance !== (userDataFromDb.balance || 0)) {
+        console.log("Обновляем balance из Firestore:", userDataFromDb.balance);
+        setBalance(userDataFromDb.balance || 0);
+      }
+
+      const newRank = userDataFromDb.rank || RANKS[0];
+      if (JSON.stringify(currentRank) !== JSON.stringify(newRank)) {
+        console.log("Обновляем currentRank из Firestore:", newRank);
+        setCurrentRank(newRank);
+      }
+
+      const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
+      if (JSON.stringify(tasks) !== JSON.stringify(mappedTasks)) {
+        console.log("Обновляем tasks из Firestore:", mappedTasks);
+        setTasks(mappedTasks);
+      }
+
+      const updatedReferals = userDataFromDb.referals || [];
+      if (JSON.stringify(user.referals) !== JSON.stringify(updatedReferals)) {
+        console.log("Обновляем referals из Firestore:", updatedReferals);
+        setUser((prev) => {
+          localStorage.setItem(
+            `referrals_${user.id}`,
+            JSON.stringify(updatedReferals)
+          );
+          return {
+            ...prev,
+            tasks: userDataFromDb.tasks || [],
+            referals: updatedReferals,
+            rank: userDataFromDb.rank || RANKS[0],
+          };
+        });
+      }
+    }, 500);
+
     const unsubscribe = onSnapshot(
       userDocRef,
       (doc) => {
@@ -455,29 +492,7 @@ function App() {
             userDataFromDb
           );
           console.log("Обновленный массив рефералов:", userDataFromDb.referals);
-          setBalance(userDataFromDb.balance || 0);
-          setCurrentRank(userDataFromDb.rank || RANKS[0]);
-          setUser((prev) => {
-            const updatedReferals = userDataFromDb.referals || [];
-            console.log(
-              "Обновляем локальное состояние referals:",
-              updatedReferals
-            );
-            // Сохраняем рефералов в localStorage
-            localStorage.setItem(
-              `referrals_${user.id}`,
-              JSON.stringify(updatedReferals)
-            );
-            return {
-              ...prev,
-              tasks: userDataFromDb.tasks || [],
-              referals: updatedReferals,
-              rank: userDataFromDb.rank || RANKS[0],
-            };
-          });
-          // Преобразуем TaskData[] в Task[]
-          const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
-          setTasks(mappedTasks);
+          debouncedUpdate(userDataFromDb);
         } else {
           console.log("Документ пользователя не существует в Firestore");
         }
@@ -487,7 +502,10 @@ function App() {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      debouncedUpdate.cancel();
+    };
   }, [user.id]);
 
   const getUserData = async (userData: UserData) => {
@@ -576,7 +594,7 @@ function App() {
                 balance: (prev.balance || 0) + 100,
               };
             });
-            setBalanceState((prev: number) => prev + 100);
+            setBalanceState((prev) => prev + 100);
           }
         } else {
           console.log(
@@ -684,7 +702,7 @@ function App() {
         clearTimeout(syncTimeoutRef.current);
       }
     };
-  }, [user, balance, tasks, currentRank]);
+  }, [balance, tasks, currentRank]);
 
   return (
     <Router>
