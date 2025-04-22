@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Phaser from "phaser";
 import React from "react";
 import chest from "../../assets/img/chestPlaceholder.webp";
@@ -22,7 +22,7 @@ import { Rank } from "../../Interfaces";
 
 interface GameProps {
   balance: number;
-  setBalance: (balance: number) => void;
+  setBalance: React.Dispatch<React.SetStateAction<number>>;
   currentRank: Rank;
   ranks: Rank[];
 }
@@ -38,16 +38,10 @@ interface ChestData {
 function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
-  const [localBalance, setLocalBalance] = useState(balance); // Локальный буфер для баланса
 
   const telegramUserId =
     //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
-
-  // Синхронизируем localBalance с balance при изменении balance
-  useEffect(() => {
-    setLocalBalance(balance);
-  }, [balance]);
 
   useEffect(() => {
     const baseWidth = window.innerWidth;
@@ -176,8 +170,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       boat.on("pointerdown", () => {
         const basePoints = 0.01;
         const points = basePoints + currentRank.clickBonus;
-        const newBalance = parseFloat((localBalance + points).toFixed(2));
-        setLocalBalance(newBalance);
+        const newBalance = parseFloat((balance + points).toFixed(2));
         setBalance(newBalance);
 
         const baseFontSize = 16;
@@ -354,8 +347,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       chest.on("pointerdown", async () => {
         const basePoints = Phaser.Math.Between(3, 10);
         const points = basePoints + currentRank.clickBonus;
-        const newBalance = localBalance + points;
-        setLocalBalance(newBalance);
+        const newBalance = balance + points;
         setBalance(newBalance);
 
         const baseFontSize = 16;
