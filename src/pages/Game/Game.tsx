@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Phaser from "phaser";
 import React from "react";
 import chest from "../../assets/img/chestPlaceholder.webp";
@@ -38,15 +38,10 @@ interface ChestData {
 function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
-  const [score, setScore] = useState(0);
 
   const telegramUserId =
     //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
-
-  useEffect(() => {
-    setScore(balance);
-  }, [balance]);
 
   useEffect(() => {
     const baseWidth = window.innerWidth;
@@ -175,32 +170,26 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       boat.on("pointerdown", () => {
         const basePoints = 0.01;
         const points = basePoints + currentRank.clickBonus;
-        queueMicrotask(() => {
-          setScore((prev) => {
-            const newScore = parseFloat((prev + points).toFixed(2));
-            setBalance(Number(newScore));
+        const newBalance = parseFloat((balance + points).toFixed(2));
+        setBalance(newBalance);
 
-            const baseFontSize = 16;
-            const fontSize = baseFontSize * scaleFactor;
-            const plusText = currentScene!.add
-              .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
-                fontSize: `${fontSize}px`,
-                color: "#ffd700",
-              })
-              .setOrigin(0.5)
-              .setDepth(4);
+        const baseFontSize = 16;
+        const fontSize = baseFontSize * scaleFactor;
+        const plusText = currentScene!.add
+          .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
+            fontSize: `${fontSize}px`,
+            color: "#ffd700",
+          })
+          .setOrigin(0.5)
+          .setDepth(4);
 
-            const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
-            currentScene!.tweens.add({
-              targets: plusText,
-              y: targetY,
-              alpha: 0,
-              duration: 1000,
-              onComplete: () => plusText.destroy(),
-            });
-
-            return newScore;
-          });
+        const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
+        currentScene!.tweens.add({
+          targets: plusText,
+          y: targetY,
+          alpha: 0,
+          duration: 1000,
+          onComplete: () => plusText.destroy(),
         });
       });
 
@@ -296,15 +285,12 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         .setDepth(3)
         .setActive(true) as Phaser.GameObjects.Sprite;
 
-      // Проверяем размеры текстуры сундука
       const chestTexture = scene.textures
         .get("chest")
         .getSourceImage() as HTMLImageElement;
 
-      // Задаем масштаб напрямую
       const finalChestScale = 0.04 * scaleFactor;
 
-      // Добавляем кольца как sprites
       const rings: Phaser.GameObjects.Sprite[] = [];
       const ringKeys = ["ring1", "ring2", "ring3"];
       ringKeys.forEach((key, index) => {
@@ -317,10 +303,9 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
           .get(key)
           .getSourceImage() as HTMLImageElement;
         const ringOriginalWidth = ringTexture.width;
-        // Увеличиваем размер колец пропорционально сундуку
-        const desiredRingWidth = baseWidth * (0.3 + index * 0.07); // Увеличиваем базовый размер колец
+        const desiredRingWidth = baseWidth * (0.3 + index * 0.07);
         const ringScale = desiredRingWidth / ringOriginalWidth;
-        const minRingScale = 0.2 + index * 0.07; // Увеличиваем минимальный масштаб
+        const minRingScale = 0.2 + index * 0.07;
         const maxRingScale = ringScale;
 
         scene.tweens.add({
@@ -346,7 +331,6 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         rings.push(ring);
       });
 
-      // Анимация появления сундука
       scene.tweens.add({
         targets: chest,
         scale: finalChestScale,
@@ -363,33 +347,27 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       chest.on("pointerdown", async () => {
         const basePoints = Phaser.Math.Between(3, 10);
         const points = basePoints + currentRank.clickBonus;
-        queueMicrotask(() => {
-          setScore((prev) => {
-            const newScore = prev + points;
-            setBalance(newScore);
+        const newBalance = balance + points;
+        setBalance(newBalance);
 
-            const baseFontSize = 16;
-            const fontSize = baseFontSize * scaleFactor;
-            const plusText = scene.add
-              .text(chest.x, chest.y, `+${points.toFixed(2)}`, {
-                fontSize: `${fontSize}px`,
-                color: "#ffd700",
-              })
-              .setOrigin(0.5)
-              .setDepth(4)
-              .setActive(true);
+        const baseFontSize = 16;
+        const fontSize = baseFontSize * scaleFactor;
+        const plusText = scene.add
+          .text(chest.x, chest.y, `+${points.toFixed(2)}`, {
+            fontSize: `${fontSize}px`,
+            color: "#ffd700",
+          })
+          .setOrigin(0.5)
+          .setDepth(4)
+          .setActive(true);
 
-            const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
-            scene.tweens.add({
-              targets: plusText,
-              y: targetY,
-              alpha: 0,
-              duration: 1000,
-              onComplete: () => plusText.destroy(),
-            });
-
-            return newScore;
-          });
+        const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
+        scene.tweens.add({
+          targets: plusText,
+          y: targetY,
+          alpha: 0,
+          duration: 1000,
+          onComplete: () => plusText.destroy(),
         });
 
         chest.destroy();

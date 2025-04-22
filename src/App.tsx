@@ -252,7 +252,6 @@ function App() {
   const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
-  const [isUpdatingFromFirestore, setIsUpdatingFromFirestore] = useState(false);
 
   // Храним предыдущие данные для сравнения
   const prevDataRef = useRef({
@@ -265,8 +264,10 @@ function App() {
 
   // Добавляем логирование для setBalance
   const setBalance = (newBalance: number) => {
-    console.log("Обновление баланса:", { oldBalance: balance, newBalance });
-    setBalanceState(newBalance);
+    if (balance !== newBalance) {
+      console.log("Обновление баланса:", { oldBalance: balance, newBalance });
+      setBalanceState(newBalance);
+    }
   };
 
   // Функция для преобразования TaskData[] в Task[]
@@ -437,7 +438,6 @@ function App() {
       user.id
     );
 
-    // Загружаем рефералов из localStorage при старте
     const cachedReferrals = localStorage.getItem(`referrals_${user.id}`);
     if (cachedReferrals) {
       setUser((prev) => ({
@@ -448,7 +448,6 @@ function App() {
 
     const userDocRef = doc(db, "userData", user.id);
     const debouncedUpdate = debounce((userDataFromDb: UserData) => {
-      setIsUpdatingFromFirestore(true);
       if (balance !== (userDataFromDb.balance || 0)) {
         console.log("Обновляем balance из Firestore:", userDataFromDb.balance);
         setBalance(userDataFromDb.balance || 0);
@@ -482,8 +481,7 @@ function App() {
           };
         });
       }
-      setIsUpdatingFromFirestore(false);
-    }, 500);
+    }, 1000);
 
     const unsubscribe = onSnapshot(
       userDocRef,
@@ -616,11 +614,6 @@ function App() {
       return;
     }
 
-    if (isUpdatingFromFirestore) {
-      console.log("Обновление из Firestore, пропускаем синхронизацию");
-      return;
-    }
-
     const hasDataChanged = () => {
       const currentData = {
         balance: Number(balance.toFixed(2)),
@@ -693,7 +686,7 @@ function App() {
 
     if (hasDataChanged()) {
       console.log("Данные изменились, планируем синхронизацию");
-      const debouncedSync = debounce(syncWithFirestore, 500);
+      const debouncedSync = debounce(syncWithFirestore, 1000);
       debouncedSync();
     }
 
