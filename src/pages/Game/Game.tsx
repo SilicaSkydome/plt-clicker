@@ -288,7 +288,7 @@ function Game({
         if (energyRef.current <= 0) {
           console.log("Недостаточно энергии для клика");
           const warningText = currentScene!.add
-            .text(boat.x, boat.y, "Недостаточно энергии!", {
+            .text(boat.x, boat.y, "Not enough energy!", {
               fontSize: `${16 * scaleFactor}px`,
               color: "#ff0000",
             })
