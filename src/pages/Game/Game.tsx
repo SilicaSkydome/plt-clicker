@@ -25,6 +25,10 @@ interface GameProps {
   setBalance: React.Dispatch<React.SetStateAction<number>>;
   currentRank: Rank;
   ranks: Rank[];
+  initialEnergy: number;
+  initialLastEnergyUpdate: number;
+  saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
+  maxEnergy: number;
 }
 
 interface ChestData {
@@ -39,12 +43,31 @@ interface ClickEvent {
   type: "boat" | "chest";
   points: number;
   chestId?: number;
+  energyAtClick?: number; // Энергия на момент клика
 }
 
-function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
+function Game({
+  balance,
+  setBalance,
+  currentRank,
+  ranks,
+  initialEnergy,
+  initialLastEnergyUpdate,
+  saveEnergy,
+  maxEnergy,
+}: GameProps) {
+  console.log("Game rerender"); // Лог для проверки перерисовок
+
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [clickQueue, setClickQueue] = useState<ClickEvent[]>([]);
+
+  // Храним энергию в useRef для управления без перерисовок
+  const energyRef = useRef<number>(initialEnergy);
+  const lastEnergyUpdateRef = useRef<number>(initialLastEnergyUpdate);
+
+  // Состояние для отображения энергии в UI
+  const [displayEnergy, setDisplayEnergy] = useState<number>(initialEnergy);
 
   const telegramUserId =
     //@ts-ignore
@@ -53,6 +76,36 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
   // Очередь для сохранения сундуков
   const saveQueueRef = useRef<ChestData[]>([]);
   const isSavingRef = useRef(false);
+
+  // Синхронизация displayEnergy с energyRef
+  const syncDisplayEnergy = () => {
+    setDisplayEnergy(energyRef.current);
+  };
+
+  // Восстановление энергии каждые 30 секунд
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentTime = Date.now();
+      const timeElapsed = (currentTime - lastEnergyUpdateRef.current) / 1000; // Время в секундах
+      const energyToAdd = Math.floor(timeElapsed / 30); // 1 энергия каждые 30 секунд
+
+      if (energyToAdd > 0) {
+        energyRef.current = Math.min(
+          energyRef.current + energyToAdd,
+          maxEnergy
+        );
+        lastEnergyUpdateRef.current = currentTime;
+        console.log("Восстановление энергии:", {
+          current: energyRef.current,
+          energyToAdd,
+        });
+        syncDisplayEnergy();
+        saveEnergy(energyRef.current, currentTime); // Сохраняем в Firestore
+      }
+    }, 1000); // Проверяем каждую секунду
+
+    return () => clearInterval(interval); // Очистка при размонтировании
+  }, [maxEnergy, saveEnergy]);
 
   // Функция для сохранения сундуков с использованием очереди
   const saveChestData = async (chest: ChestData) => {
@@ -87,6 +140,14 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
     if (clickQueue.length === 0) return;
 
     const processClick = (click: ClickEvent) => {
+      // Проверяем энергию для кликов по кораблю
+      if (click.type === "boat" && (click.energyAtClick ?? 0) < 1) {
+        console.log(
+          "Пропущен клик по кораблю: недостаточно энергии на момент клика"
+        );
+        return;
+      }
+
       setBalance((prev) => {
         const newBalance = parseFloat((prev + click.points).toFixed(2));
         console.log(
@@ -100,7 +161,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
 
     clickQueue.forEach((click) => processClick(click));
     setClickQueue([]);
-  }, [clickQueue]);
+  }, [clickQueue, setBalance]);
 
   useEffect(() => {
     const baseWidth = window.innerWidth;
@@ -222,10 +283,73 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
       });
 
       boat.on("pointerdown", () => {
+        console.log("Текущая энергия перед кликом:", energyRef.current);
+
+        if (energyRef.current <= 0) {
+          console.log("Недостаточно энергии для клика");
+          const warningText = currentScene!.add
+            .text(boat.x, boat.y, "Недостаточно энергии!", {
+              fontSize: `${16 * scaleFactor}px`,
+              color: "#ff0000",
+            })
+            .setOrigin(0.5)
+            .setDepth(4);
+          currentScene!.tweens.add({
+            targets: warningText,
+            y: boat.y - 30 * scaleFactor,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => warningText.destroy(),
+          });
+          return;
+        }
+
         console.log("Клик по кораблю зарегистрирован");
-        const basePoints = 0.01;
+        const basePoints = 0.1;
         const points = basePoints + currentRank.clickBonus;
-        setClickQueue((prev) => [...prev, { type: "boat", points }]);
+
+        // Сохраняем энергию на момент клика до её уменьшения
+        const energyAtClick = energyRef.current;
+
+        // Уменьшаем энергию
+        energyRef.current = Math.max(energyRef.current - 1, 0);
+        const currentTime = Date.now();
+        lastEnergyUpdateRef.current = currentTime;
+
+        console.log("Новое значение энергии после клика:", energyRef.current);
+
+        // Синхронизируем отображение
+        syncDisplayEnergy();
+
+        // Сохраняем в Firestore
+        saveEnergy(energyRef.current, currentTime);
+
+        // Добавляем клик в очередь с энергией на момент клика
+        setClickQueue((prev) => [
+          ...prev,
+          { type: "boat", points, energyAtClick },
+        ]);
+
+        // Отображение надписи "+0.1"
+        const baseFontSize = 16;
+        const fontSize = baseFontSize * scaleFactor;
+        const plusText = currentScene!.add
+          .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
+            fontSize: `${fontSize}px`,
+            color: "#ffd700",
+          })
+          .setOrigin(0.5)
+          .setDepth(4)
+          .setActive(true);
+
+        const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
+        currentScene!.tweens.add({
+          targets: plusText,
+          y: targetY,
+          alpha: 0,
+          duration: 1000,
+          onComplete: () => plusText.destroy(),
+        });
       });
 
       loadChestData().then((savedChests) => {
@@ -319,10 +443,6 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         .setScale(0)
         .setDepth(3)
         .setActive(true) as Phaser.GameObjects.Sprite;
-
-      const chestTexture = scene.textures
-        .get("chest")
-        .getSourceImage() as HTMLImageElement;
 
       const finalChestScale = 0.04 * scaleFactor;
 
@@ -461,7 +581,7 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         currentScene = null;
       }
     };
-  }, [currentRank]);
+  }, [currentRank, initialEnergy, initialLastEnergyUpdate]);
 
   return (
     <>
@@ -469,6 +589,9 @@ function Game({ balance, setBalance, currentRank, ranks }: GameProps) {
         {currentRank.title}, Until the next rank is left:
       </div>
       <ProgressBar balance={balance} currentRank={currentRank} ranks={ranks} />
+      <div className="text">
+        Energy: {displayEnergy}/{maxEnergy}
+      </div>
       <div ref={gameRef} className="game-container" />
     </>
   );

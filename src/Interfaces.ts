@@ -44,4 +44,6 @@ export interface UserData {
   tasks: TaskData[];
   referals?: Referal[];
   rank?: Rank; // Добавляем поле для ранга
+  energy: number; // Добавляем поле для энергии
+  lastEnergyUpdate: number; // Добавляем поле для времени последнего обновления энергии
 }

@@ -162,6 +162,8 @@ const testUser: UserData = {
   tasks: [],
   referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
   rank: determineRank(990),
+  energy: 50,
+  lastEnergyUpdate: Date.now(),
 };
 
 interface AppContentProps {
@@ -172,6 +174,10 @@ interface AppContentProps {
   tasks: Task[];
   setTasks: (tasks: Task[]) => void;
   currentRank: Rank;
+  initialEnergy: number;
+  initialLastEnergyUpdate: number;
+  saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
+  maxEnergy: number;
 }
 
 const AppContent = ({
@@ -182,6 +188,10 @@ const AppContent = ({
   tasks,
   setTasks,
   currentRank,
+  initialEnergy,
+  initialLastEnergyUpdate,
+  saveEnergy,
+  maxEnergy,
 }: AppContentProps) => {
   const location = useLocation();
 
@@ -210,6 +220,10 @@ const AppContent = ({
               setBalance={setBalance}
               currentRank={currentRank}
               ranks={RANKS}
+              initialEnergy={initialEnergy}
+              initialLastEnergyUpdate={initialLastEnergyUpdate}
+              saveEnergy={saveEnergy}
+              maxEnergy={maxEnergy}
             />
           }
         />
@@ -244,11 +258,17 @@ function App() {
     tasks: [],
     referals: [],
     rank: RANKS[0],
+    energy: 50,
+    lastEnergyUpdate: Date.now(),
   });
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
+  const [initialEnergy, setInitialEnergy] = useState<number>(50);
+  const [initialLastEnergyUpdate, setInitialLastEnergyUpdate] =
+    useState<number>(Date.now());
+  const maxEnergy = 50;
 
   const prevDataRef = useRef({
     balance: 0,
@@ -275,6 +295,26 @@ function App() {
         ? { ...initialTask, completed: firestoreTask.completed }
         : initialTask;
     });
+  };
+
+  // Функция для сохранения энергии и времени обновления
+  const saveEnergy = async (newEnergy: number, updateTime: number) => {
+    if (!user.id || user.id === "test_user_123") {
+      console.log("Тестовый пользователь, сохранение энергии отключено");
+      return;
+    }
+
+    try {
+      const userDocRef = doc(db, "userData", user.id);
+      await setDoc(
+        userDocRef,
+        { energy: newEnergy, lastEnergyUpdate: updateTime },
+        { merge: true }
+      );
+      console.log(`Энергия сохранена: ${newEnergy}, время: ${updateTime}`);
+    } catch (error) {
+      console.error("Ошибка при сохранении энергии:", error);
+    }
   };
 
   useEffect(() => {
@@ -307,6 +347,8 @@ function App() {
             tasks: [],
             referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
             rank: determineRank(1000),
+            energy: 50,
+            lastEnergyUpdate: Date.now(),
           };
           isTestUser = true;
         } else {
@@ -341,6 +383,8 @@ function App() {
                 tasks: [],
                 referals: [],
                 rank: RANKS[0],
+                energy: 50,
+                lastEnergyUpdate: Date.now(),
               };
             }
           }
@@ -353,6 +397,8 @@ function App() {
           await getUserData(userData);
         } else {
           setBalance(userData.balance);
+          setInitialEnergy(userData.energy);
+          setInitialLastEnergyUpdate(userData.lastEnergyUpdate);
           setCurrentRank(userData.rank || RANKS[0]);
           setTasks(
             userData.tasks.map((task) => ({ ...task, action: () => false }))
@@ -363,6 +409,8 @@ function App() {
         const fallbackUser: UserData = testUser;
         setUser(fallbackUser);
         setBalance(fallbackUser.balance);
+        setInitialEnergy(fallbackUser.energy);
+        setInitialLastEnergyUpdate(fallbackUser.lastEnergyUpdate);
         setCurrentRank(fallbackUser.rank || RANKS[0]);
         setTasks(
           fallbackUser.tasks.map((task) => ({ ...task, action: () => false }))
@@ -424,13 +472,36 @@ function App() {
       if (userDoc.exists()) {
         const userDataFromDb = userDoc.data() as UserData;
         console.log("Данные пользователя из Firestore:", userDataFromDb);
+
+        // Загружаем баланс
         setBalance(userDataFromDb.balance || 0);
+
+        // Загружаем энергию и рассчитываем восстановление
+        const storedEnergy = userDataFromDb.energy ?? 50;
+        const storedLastUpdate = userDataFromDb.lastEnergyUpdate ?? Date.now();
+        const currentTime = Date.now();
+        const timeElapsed = (currentTime - storedLastUpdate) / 1000; // Время в секундах
+        const energyToAdd = Math.floor(timeElapsed / 30); // 1 энергия каждые 30 секунд
+        const newEnergy = Math.min(storedEnergy + energyToAdd, maxEnergy);
+
+        setInitialEnergy(newEnergy);
+        setInitialLastEnergyUpdate(currentTime);
+
+        // Сохраняем обновлённую энергию и время
+        await setDoc(
+          userDocRef,
+          { energy: newEnergy, lastEnergyUpdate: currentTime },
+          { merge: true }
+        );
+
         setCurrentRank(userDataFromDb.rank || RANKS[0]);
         setUser((prev) => ({
           ...prev,
           tasks: userDataFromDb.tasks || [],
           referals: userDataFromDb.referals || [],
           rank: userDataFromDb.rank || RANKS[0],
+          energy: newEnergy,
+          lastEnergyUpdate: currentTime,
         }));
         const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
         setTasks(mappedTasks);
@@ -446,15 +517,21 @@ function App() {
           tasks: [],
           referals: [],
           rank: RANKS[0],
+          energy: 50,
+          lastEnergyUpdate: Date.now(),
         };
         await setDoc(userDocRef, newUser);
         setBalance(0);
+        setInitialEnergy(50);
+        setInitialLastEnergyUpdate(Date.now());
         setCurrentRank(RANKS[0]);
         setTasks(initialTasks);
       }
     } catch (error) {
       console.error("Ошибка при получении данных из Firestore:", error);
       setBalance(0);
+      setInitialEnergy(50);
+      setInitialLastEnergyUpdate(Date.now());
       setCurrentRank(RANKS[0]);
       setTasks(initialTasks);
     }
@@ -520,6 +597,8 @@ function App() {
           tasks: [],
           referals: [{ id: newUserId }],
           rank: RANKS[0],
+          energy: 50,
+          lastEnergyUpdate: Date.now(),
         };
         await setDoc(referrerRef, newReferrer);
         console.log(
@@ -624,6 +703,10 @@ function App() {
         tasks={tasks}
         setTasks={setTasks}
         currentRank={currentRank}
+        initialEnergy={initialEnergy}
+        initialLastEnergyUpdate={initialLastEnergyUpdate}
+        saveEnergy={saveEnergy}
+        maxEnergy={maxEnergy}
       />
     </Router>
   );
