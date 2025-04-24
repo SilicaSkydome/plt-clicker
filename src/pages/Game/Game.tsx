@@ -43,7 +43,7 @@ interface ClickEvent {
   type: "boat" | "chest";
   points: number;
   chestId?: number;
-  energyAtClick?: number; // Энергия на момент клика
+  energyAtClick?: number;
 }
 
 function Game({
@@ -56,65 +56,108 @@ function Game({
   saveEnergy,
   maxEnergy,
 }: GameProps) {
-  console.log("Game rerender"); // Лог для проверки перерисовок
+  console.log("Game rerender");
 
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [clickQueue, setClickQueue] = useState<ClickEvent[]>([]);
-
-  // Храним энергию в useRef для управления без перерисовок
   const energyRef = useRef<number>(initialEnergy);
   const lastEnergyUpdateRef = useRef<number>(initialLastEnergyUpdate);
-
-  // Состояние для отображения энергии в UI
   const [displayEnergy, setDisplayEnergy] = useState<number>(initialEnergy);
-
   const telegramUserId =
     //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
-
-  // Очередь для сохранения сундуков
   const saveQueueRef = useRef<ChestData[]>([]);
   const isSavingRef = useRef(false);
+  const energySaveQueueRef = useRef<{ energy: number; updateTime: number }[]>(
+    []
+  );
+  const isSavingEnergyRef = useRef(false);
 
-  // Синхронизация displayEnergy с energyRef
   const syncDisplayEnergy = () => {
     setDisplayEnergy(energyRef.current);
   };
 
-  // Восстановление энергии каждые 30 секунд
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const currentTime = Date.now();
-      const timeElapsed = (currentTime - lastEnergyUpdateRef.current) / 1000; // Время в секундах
-      const energyToAdd = Math.floor(timeElapsed / 30); // 1 энергия каждые 30 секунд
+  const saveEnergyWithQueue = async (energy: number, updateTime: number) => {
+    energySaveQueueRef.current.push({ energy, updateTime });
+    console.log(
+      `Энергия добавлена в очередь на сохранение. Текущая длина очереди: ${energySaveQueueRef.current.length}`
+    );
 
-      if (energyToAdd > 0) {
-        energyRef.current = Math.min(
-          energyRef.current + energyToAdd,
-          maxEnergy
-        );
-        lastEnergyUpdateRef.current = currentTime;
-        console.log("Восстановление энергии:", {
-          current: energyRef.current,
-          energyToAdd,
-        });
-        syncDisplayEnergy();
-        saveEnergy(energyRef.current, currentTime); // Сохраняем в Firestore
+    if (isSavingEnergyRef.current) return;
+
+    isSavingEnergyRef.current = true;
+    while (energySaveQueueRef.current.length > 0) {
+      const { energy, updateTime } = energySaveQueueRef.current[0];
+      try {
+        await saveEnergy(energy, updateTime);
+        console.log(`Энергия ${energy} успешно сохранена в Firestore`);
+      } catch (error) {
+        console.error(`Ошибка при сохранении энергии ${energy}:`, error);
       }
-    }, 1000); // Проверяем каждую секунду
+      energySaveQueueRef.current.shift();
+    }
+    isSavingEnergyRef.current = false;
+  };
 
-    return () => clearInterval(interval); // Очистка при размонтировании
-  }, [maxEnergy, saveEnergy]);
+  // Синхронизация энергии при монтировании
+  useEffect(() => {
+    const currentTime = Date.now();
+    const timeElapsed = (currentTime - initialLastEnergyUpdate) / 1000;
+    const energyToAdd = Math.floor(timeElapsed / 30);
+    const newEnergy = Math.min(initialEnergy + energyToAdd, maxEnergy);
 
-  // Функция для сохранения сундуков с использованием очереди
+    if (newEnergy !== energyRef.current) {
+      energyRef.current = newEnergy;
+      lastEnergyUpdateRef.current = currentTime;
+      syncDisplayEnergy();
+      saveEnergyWithQueue(newEnergy, currentTime);
+    }
+  }, [initialEnergy, initialLastEnergyUpdate, maxEnergy]);
+
+  // Восстановление энергии
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const startEnergyRecovery = () => {
+      intervalId = setInterval(() => {
+        const currentTime = Date.now();
+        const timeElapsed = (currentTime - lastEnergyUpdateRef.current) / 1000;
+        const energyToAdd = Math.floor(timeElapsed / 30);
+
+        if (energyToAdd > 0) {
+          energyRef.current = Math.min(
+            energyRef.current + energyToAdd,
+            maxEnergy
+          );
+          lastEnergyUpdateRef.current = currentTime;
+          console.log("Восстановление энергии:", {
+            current: energyRef.current,
+            energyToAdd,
+          });
+          syncDisplayEnergy();
+          saveEnergyWithQueue(energyRef.current, currentTime);
+        }
+      }, 1000);
+    };
+
+    startEnergyRecovery();
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [maxEnergy]);
+
+  // Сохранение сундуков
   const saveChestData = async (chest: ChestData) => {
     saveQueueRef.current.push(chest);
     console.log(
       `Сундук ${chest.id} добавлен в очередь на сохранение. Текущая длина очереди: ${saveQueueRef.current.length}`
     );
 
-    if (isSavingRef.current) return; // Если уже идёт сохранение, ждём
+    if (isSavingRef.current) return;
 
     isSavingRef.current = true;
     while (saveQueueRef.current.length > 0) {
@@ -135,12 +178,11 @@ function Game({
     isSavingRef.current = false;
   };
 
-  // Обработка кликов из очереди
+  // Обработка кликов
   useEffect(() => {
     if (clickQueue.length === 0) return;
 
     const processClick = (click: ClickEvent) => {
-      // Проверяем энергию для кликов по кораблю
       if (click.type === "boat" && (click.energyAtClick ?? 0) < 1) {
         console.log(
           "Пропущен клик по кораблю: недостаточно энергии на момент клика"
@@ -308,29 +350,21 @@ function Game({
         const basePoints = 0.1;
         const points = basePoints + currentRank.clickBonus;
 
-        // Сохраняем энергию на момент клика до её уменьшения
         const energyAtClick = energyRef.current;
-
-        // Уменьшаем энергию
         energyRef.current = Math.max(energyRef.current - 1, 0);
         const currentTime = Date.now();
         lastEnergyUpdateRef.current = currentTime;
 
         console.log("Новое значение энергии после клика:", energyRef.current);
 
-        // Синхронизируем отображение
         syncDisplayEnergy();
+        saveEnergyWithQueue(energyRef.current, currentTime);
 
-        // Сохраняем в Firestore
-        saveEnergy(energyRef.current, currentTime);
-
-        // Добавляем клик в очередь с энергией на момент клика
         setClickQueue((prev) => [
           ...prev,
           { type: "boat", points, energyAtClick },
         ]);
 
-        // Отображение надписи "+0.1"
         const baseFontSize = 16;
         const fontSize = baseFontSize * scaleFactor;
         const plusText = currentScene!.add
@@ -571,6 +605,14 @@ function Game({
     }
 
     return () => {
+      const currentTime = Date.now();
+      saveEnergyWithQueue(energyRef.current, currentTime).then(() => {
+        console.log(
+          "Энергия сохранена перед размонтированием:",
+          energyRef.current
+        );
+      });
+
       if (gameInstance.current) {
         gameInstance.current.destroy(true);
         gameInstance.current = null;
