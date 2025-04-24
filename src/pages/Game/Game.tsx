@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
-import React from "react";
+import Cookies from "js-cookie";
 import chest from "../../assets/img/chestPlaceholder.webp";
 import ring1 from "../../assets/img/circles/1.png";
 import ring2 from "../../assets/img/circles/2.png";
@@ -18,7 +18,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { Rank } from "../../Interfaces";
+import { Rank, UserData } from "../../Interfaces";
 
 interface GameProps {
   balance: number;
@@ -43,7 +43,7 @@ interface ClickEvent {
   type: "boat" | "chest";
   points: number;
   chestId?: number;
-  energyAtClick?: number; // Энергия на момент клика
+  energyAtClick?: number;
 }
 
 function Game({
@@ -56,65 +56,268 @@ function Game({
   saveEnergy,
   maxEnergy,
 }: GameProps) {
-  console.log("Game rerender"); // Лог для проверки перерисовок
+  console.log("Game rerender");
 
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [clickQueue, setClickQueue] = useState<ClickEvent[]>([]);
-
-  // Храним энергию в useRef для управления без перерисовок
   const energyRef = useRef<number>(initialEnergy);
   const lastEnergyUpdateRef = useRef<number>(initialLastEnergyUpdate);
-
-  // Состояние для отображения энергии в UI
   const [displayEnergy, setDisplayEnergy] = useState<number>(initialEnergy);
-
   const telegramUserId =
     //@ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
-
-  // Очередь для сохранения сундуков
   const saveQueueRef = useRef<ChestData[]>([]);
   const isSavingRef = useRef(false);
+  const energySaveQueueRef = useRef<{ energy: number; updateTime: number }[]>(
+    []
+  );
+  const isSavingEnergyRef = useRef(false);
 
-  // Синхронизация displayEnergy с energyRef
   const syncDisplayEnergy = () => {
     setDisplayEnergy(energyRef.current);
   };
 
-  // Восстановление энергии каждые 30 секунд
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const currentTime = Date.now();
-      const timeElapsed = (currentTime - lastEnergyUpdateRef.current) / 1000; // Время в секундах
-      const energyToAdd = Math.floor(timeElapsed / 30); // 1 энергия каждые 30 секунд
+  // Save energy to cookies
+  const saveEnergyToCookies = (energy: number, updateTime: number) => {
+    try {
+      Cookies.set(
+        `energy_${telegramUserId}`,
+        JSON.stringify({ energy, lastEnergyUpdate: updateTime }),
+        {
+          expires: 7,
+        }
+      );
+      console.log(`Energy ${energy} saved to cookies with time ${updateTime}`);
+    } catch (error) {
+      console.error("Error saving energy to cookies:", error);
+    }
+  };
 
-      if (energyToAdd > 0) {
-        energyRef.current = Math.min(
-          energyRef.current + energyToAdd,
-          maxEnergy
-        );
-        lastEnergyUpdateRef.current = currentTime;
-        console.log("Восстановление энергии:", {
-          current: energyRef.current,
-          energyToAdd,
-        });
-        syncDisplayEnergy();
-        saveEnergy(energyRef.current, currentTime); // Сохраняем в Firestore
+  // Load energy from cookies
+  const loadEnergyFromCookies = () => {
+    try {
+      const cookieData = Cookies.get(`energy_${telegramUserId}`);
+      if (cookieData) {
+        const parsed = JSON.parse(cookieData);
+        if (
+          parsed.energy !== undefined &&
+          parsed.lastEnergyUpdate !== undefined
+        ) {
+          console.log("Loaded from cookies:", parsed);
+          return {
+            energy: parsed.energy,
+            lastEnergyUpdate: parsed.lastEnergyUpdate,
+          };
+        }
       }
-    }, 1000); // Проверяем каждую секунду
+    } catch (error) {
+      console.error("Error loading energy from cookies:", error);
+    }
+    return null;
+  };
 
-    return () => clearInterval(interval); // Очистка при размонтировании
-  }, [maxEnergy, saveEnergy]);
+  const saveEnergyWithQueue = async (energy: number, updateTime: number) => {
+    saveEnergyToCookies(energy, updateTime);
 
-  // Функция для сохранения сундуков с использованием очереди
+    energySaveQueueRef.current.push({ energy, updateTime });
+    console.log(
+      `Energy queued for Firestore: ${energy}, time: ${updateTime}. Queue length: ${energySaveQueueRef.current.length}`
+    );
+
+    if (isSavingEnergyRef.current) return;
+
+    isSavingEnergyRef.current = true;
+    while (energySaveQueueRef.current.length > 0) {
+      const { energy, updateTime } = energySaveQueueRef.current[0];
+      try {
+        await saveEnergy(energy, updateTime);
+        console.log(
+          `Energy ${energy} saved to Firestore with time ${updateTime}`
+        );
+      } catch (error) {
+        console.error(`Error saving energy ${energy} to Firestore:`, error);
+      }
+      energySaveQueueRef.current.shift();
+    }
+    isSavingEnergyRef.current = false;
+  };
+
+  // Sync energy on mount
+  useEffect(() => {
+    const syncEnergyOnMount = async () => {
+      let newEnergy = initialEnergy;
+      let newLastEnergyUpdate = initialLastEnergyUpdate;
+
+      // Try cookies first
+      const cookieData = loadEnergyFromCookies();
+      if (cookieData) {
+        newEnergy = cookieData.energy;
+        newLastEnergyUpdate = cookieData.lastEnergyUpdate;
+      }
+
+      // Then try Firestore
+      if (telegramUserId !== "default") {
+        try {
+          const userDocRef = doc(db, "userData", telegramUserId);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserData;
+            const storedEnergy = userData.energy ?? newEnergy;
+            const storedLastUpdate =
+              userData.lastEnergyUpdate ?? newLastEnergyUpdate;
+            console.log("Loaded from Firestore:", {
+              storedEnergy,
+              storedLastUpdate,
+            });
+
+            if (storedLastUpdate > newLastEnergyUpdate) {
+              newEnergy = storedEnergy;
+              newLastEnergyUpdate = storedLastUpdate;
+            }
+          }
+        } catch (error) {
+          console.error("Error loading energy from Firestore:", error);
+        }
+      }
+
+      // Calculate energy recovery
+      const currentTime = Date.now();
+      const timeElapsed = (currentTime - newLastEnergyUpdate) / 1000;
+      const energyToAdd = Math.floor(timeElapsed / 30);
+      newEnergy = Math.min(newEnergy + energyToAdd, maxEnergy);
+
+      energyRef.current = newEnergy;
+      lastEnergyUpdateRef.current = currentTime;
+      syncDisplayEnergy();
+      await saveEnergyWithQueue(newEnergy, currentTime);
+
+      console.log("Energy synced on mount:", { newEnergy, currentTime });
+    };
+
+    syncEnergyOnMount();
+  }, [initialEnergy, initialLastEnergyUpdate, telegramUserId, maxEnergy]);
+
+  // Sync energy on tab visibility change
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (
+        document.visibilityState === "visible" &&
+        telegramUserId !== "default"
+      ) {
+        console.log("Tab visible, syncing energy from Firestore");
+        try {
+          const userDocRef = doc(db, "userData", telegramUserId);
+          const userDoc = await getDoc(userDocRef);
+          let newEnergy = energyRef.current;
+          let newLastEnergyUpdate = lastEnergyUpdateRef.current;
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserData;
+            const storedEnergy = userData.energy ?? newEnergy;
+            const storedLastUpdate =
+              userData.lastEnergyUpdate ?? newLastEnergyUpdate;
+            console.log("Loaded from Firestore:", {
+              storedEnergy,
+              storedLastUpdate,
+            });
+
+            if (storedLastUpdate > newLastEnergyUpdate) {
+              newEnergy = storedEnergy;
+              newLastEnergyUpdate = storedLastUpdate;
+            }
+          }
+
+          const currentTime = Date.now();
+          const timeElapsed = (currentTime - newLastEnergyUpdate) / 1000;
+          const energyToAdd = Math.floor(timeElapsed / 30);
+          newEnergy = Math.min(newEnergy + energyToAdd, maxEnergy);
+
+          energyRef.current = newEnergy;
+          lastEnergyUpdateRef.current = currentTime;
+          syncDisplayEnergy();
+          await saveEnergyWithQueue(newEnergy, currentTime);
+
+          console.log("Energy synced on visibility change:", {
+            newEnergy,
+            currentTime,
+          });
+        } catch (error) {
+          console.error("Error syncing energy on visibility change:", error);
+          const cookieData = loadEnergyFromCookies();
+          if (cookieData) {
+            const currentTime = Date.now();
+            const timeElapsed =
+              (currentTime - cookieData.lastEnergyUpdate) / 1000;
+            const energyToAdd = Math.floor(timeElapsed / 30);
+            const newEnergy = Math.min(
+              cookieData.energy + energyToAdd,
+              maxEnergy
+            );
+
+            energyRef.current = newEnergy;
+            lastEnergyUpdateRef.current = currentTime;
+            syncDisplayEnergy();
+            await saveEnergyWithQueue(newEnergy, currentTime);
+          }
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [telegramUserId, maxEnergy]);
+
+  // Energy recovery
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const startEnergyRecovery = () => {
+      intervalId = setInterval(() => {
+        if (document.visibilityState === "hidden") {
+          console.log("Tab hidden, pausing energy recovery");
+          return;
+        }
+
+        const currentTime = Date.now();
+        const timeElapsed = (currentTime - lastEnergyUpdateRef.current) / 1000;
+        const energyToAdd = Math.floor(timeElapsed / 30);
+
+        if (energyToAdd > 0) {
+          energyRef.current = Math.min(
+            energyRef.current + energyToAdd,
+            maxEnergy
+          );
+          lastEnergyUpdateRef.current = currentTime;
+          console.log("Energy recovered:", {
+            current: energyRef.current,
+            energyToAdd,
+          });
+          syncDisplayEnergy();
+          saveEnergyWithQueue(energyRef.current, currentTime);
+        }
+      }, 1000);
+    };
+
+    startEnergyRecovery();
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [maxEnergy]);
+
+  // Save chest data
   const saveChestData = async (chest: ChestData) => {
     saveQueueRef.current.push(chest);
     console.log(
-      `Сундук ${chest.id} добавлен в очередь на сохранение. Текущая длина очереди: ${saveQueueRef.current.length}`
+      `Chest ${chest.id} queued for save. Queue length: ${saveQueueRef.current.length}`
     );
 
-    if (isSavingRef.current) return; // Если уже идёт сохранение, ждём
+    if (isSavingRef.current) return;
 
     isSavingRef.current = true;
     while (saveQueueRef.current.length > 0) {
@@ -126,33 +329,30 @@ function Game({
           `${telegramUserId}_${nextChest.id}`
         );
         await setDoc(chestDocRef, nextChest);
-        console.log(`Сундук ${nextChest.id} успешно сохранён в Firestore`);
+        console.log(`Chest ${nextChest.id} saved to Firestore`);
       } catch (error) {
-        console.error(`Ошибка при сохранении сундука ${nextChest.id}:`, error);
+        console.error(`Error saving chest ${nextChest.id}:`, error);
       }
       saveQueueRef.current.shift();
     }
     isSavingRef.current = false;
   };
 
-  // Обработка кликов из очереди
+  // Process click queue
   useEffect(() => {
     if (clickQueue.length === 0) return;
 
     const processClick = (click: ClickEvent) => {
-      // Проверяем энергию для кликов по кораблю
       if (click.type === "boat" && (click.energyAtClick ?? 0) < 1) {
-        console.log(
-          "Пропущен клик по кораблю: недостаточно энергии на момент клика"
-        );
+        console.log("Skipped boat click: insufficient energy at click");
         return;
       }
 
       setBalance((prev) => {
         const newBalance = parseFloat((prev + click.points).toFixed(2));
         console.log(
-          `Обновление баланса (${click.type}${
-            click.chestId !== undefined ? `, сундук ${click.chestId}` : ""
+          `Balance updated (${click.type}${
+            click.chestId !== undefined ? `, chest ${click.chestId}` : ""
           }): ${prev} + ${click.points} = ${newBalance}`
         );
         return newBalance;
@@ -163,6 +363,7 @@ function Game({
     setClickQueue([]);
   }, [clickQueue, setBalance]);
 
+  // Phaser game setup
   useEffect(() => {
     const baseWidth = window.innerWidth;
     const baseHeight = window.innerHeight - 100;
@@ -283,10 +484,10 @@ function Game({
       });
 
       boat.on("pointerdown", () => {
-        console.log("Текущая энергия перед кликом:", energyRef.current);
+        console.log("Boat clicked, current energy:", energyRef.current);
 
         if (energyRef.current <= 0) {
-          console.log("Недостаточно энергии для клика");
+          console.log("Insufficient energy for click");
           const warningText = currentScene!.add
             .text(boat.x, boat.y, "Not enough energy!", {
               fontSize: `${16 * scaleFactor}px`,
@@ -304,33 +505,25 @@ function Game({
           return;
         }
 
-        console.log("Клик по кораблю зарегистрирован");
+        console.log("Boat click registered");
         const basePoints = 0.1;
         const points = basePoints + currentRank.clickBonus;
 
-        // Сохраняем энергию на момент клика до её уменьшения
         const energyAtClick = energyRef.current;
-
-        // Уменьшаем энергию
         energyRef.current = Math.max(energyRef.current - 1, 0);
         const currentTime = Date.now();
         lastEnergyUpdateRef.current = currentTime;
 
-        console.log("Новое значение энергии после клика:", energyRef.current);
+        console.log("Energy after click:", energyRef.current);
 
-        // Синхронизируем отображение
         syncDisplayEnergy();
+        saveEnergyWithQueue(energyRef.current, currentTime);
 
-        // Сохраняем в Firestore
-        saveEnergy(energyRef.current, currentTime);
-
-        // Добавляем клик в очередь с энергией на момент клика
         setClickQueue((prev) => [
           ...prev,
           { type: "boat", points, energyAtClick },
         ]);
 
-        // Отображение надписи "+0.1"
         const baseFontSize = 16;
         const fontSize = baseFontSize * scaleFactor;
         const plusText = currentScene!.add
@@ -500,7 +693,7 @@ function Game({
       chestData.push(chestEntry);
 
       chest.on("pointerdown", () => {
-        console.log(`Клик по сундуку ${id} зарегистрирован`);
+        console.log(`Chest ${id} clicked`);
         const basePoints = Phaser.Math.Between(3, 10);
         const points = basePoints + currentRank.clickBonus;
         setClickQueue((prev) => [
@@ -571,6 +764,12 @@ function Game({
     }
 
     return () => {
+      const currentTime = Date.now();
+      saveEnergyToCookies(energyRef.current, currentTime);
+      saveEnergyWithQueue(energyRef.current, currentTime).then(() => {
+        console.log("Energy saved to Firestore before unmount");
+      });
+
       if (gameInstance.current) {
         gameInstance.current.destroy(true);
         gameInstance.current = null;
@@ -581,7 +780,7 @@ function Game({
         currentScene = null;
       }
     };
-  }, [currentRank, initialEnergy, initialLastEnergyUpdate]);
+  }, [currentRank, initialEnergy, initialLastEnergyUpdate, telegramUserId]);
 
   return (
     <>
