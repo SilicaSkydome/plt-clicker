@@ -5,7 +5,7 @@ import chest from "../../assets/img/chestPlaceholder.webp";
 import ring1 from "../../assets/img/circles/1.png";
 import ring2 from "../../assets/img/circles/2.png";
 import ring3 from "../../assets/img/circles/3.png";
-import shipPlaceholder from "../../assets/img/shipPlaceholder.png";
+import shipPlaceholder from "../../assets/img/ship.webp";
 import "./Game.css";
 import ProgressBar from "../../components/Common/ProgressBar/ProgressBar";
 import { db } from "../../../firebaseConfig";
@@ -470,7 +470,7 @@ function Game({
         .get("boat")
         .getSourceImage() as HTMLImageElement;
       const boatOriginalWidth = boatTexture.width;
-      const desiredBoatWidth = baseWidth * 0.5;
+      const desiredBoatWidth = baseWidth * 0.25;
       const boatScale = desiredBoatWidth / boatOriginalWidth;
       boat.setScale(boatScale);
 
