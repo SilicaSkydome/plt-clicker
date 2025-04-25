@@ -26,3 +26,11 @@
 .default-bg {
   background: #1e1e1e;
 }
+@media (max-width: 375px) {
+  .game-bg {
+    background: url("./assets/img/sea.webp") no-repeat bottom center,
+      url("./assets/img/sky.webp") no-repeat top center,
+      linear-gradient(to bottom, transparent 40%, #000 60%);
+    background-size: 110% 60%, 150% 50%;
+  }
+}
