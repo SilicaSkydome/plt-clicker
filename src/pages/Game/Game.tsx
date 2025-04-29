@@ -56,8 +56,6 @@ function Game({
   saveEnergy,
   maxEnergy,
 }: GameProps) {
-  console.log("Game rerender");
-
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
   const [clickQueue, setClickQueue] = useState<ClickEvent[]>([]);
@@ -65,7 +63,7 @@ function Game({
   const lastEnergyUpdateRef = useRef<number>(initialLastEnergyUpdate);
   const [displayEnergy, setDisplayEnergy] = useState<number>(initialEnergy);
   const telegramUserId =
-    //@ts-ignore
+    // @ts-ignore
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "default";
   const saveQueueRef = useRef<ChestData[]>([]);
   const isSavingRef = useRef(false);
@@ -84,9 +82,7 @@ function Game({
       Cookies.set(
         `energy_${telegramUserId}`,
         JSON.stringify({ energy, lastEnergyUpdate: updateTime }),
-        {
-          expires: 7,
-        }
+        { expires: 7 }
       );
       console.log(`Energy ${energy} saved to cookies with time ${updateTime}`);
     } catch (error) {
@@ -117,9 +113,9 @@ function Game({
     return null;
   };
 
+  // Save energy with queue
   const saveEnergyWithQueue = async (energy: number, updateTime: number) => {
     saveEnergyToCookies(energy, updateTime);
-
     energySaveQueueRef.current.push({ energy, updateTime });
     console.log(
       `Energy queued for Firestore: ${energy}, time: ${updateTime}. Queue length: ${energySaveQueueRef.current.length}`
@@ -304,9 +300,7 @@ function Game({
     startEnergyRecovery();
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      if (intervalId) clearInterval(intervalId);
     };
   }, [maxEnergy]);
 
@@ -554,7 +548,7 @@ function Game({
 
             do {
               x = Phaser.Math.Between(50, baseWidth - 50);
-              y = Phaser.Math.Between(100, baseHeight - 100);
+              y = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
               attempts++;
             } while (
               isOverlapping(x, y, savedChests, boat, 50 * scaleFactor) &&
@@ -563,7 +557,7 @@ function Game({
 
             if (attempts >= maxAttempts) {
               console.warn(
-                "Could not find a valid position for chest after max attempts."
+                `Could not find a valid position for chest ${index} after max attempts.`
               );
               return;
             }
@@ -574,8 +568,30 @@ function Game({
           } else {
             x = chest.x;
             y = chest.y;
+            if (y < baseHeight / 2) {
+              let attempts = 0;
+              const maxAttempts = 10;
+              do {
+                x = Phaser.Math.Between(50, baseWidth - 50);
+                y = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
+                attempts++;
+              } while (
+                isOverlapping(x, y, savedChests, boat, 50 * scaleFactor) &&
+                attempts < maxAttempts
+              );
+              if (attempts < maxAttempts) {
+                savedChests[index].x = x;
+                savedChests[index].y = y;
+                saveChestData(savedChests[index]);
+              } else {
+                console.warn(
+                  `Could not reposition chest ${index} after max attempts.`
+                );
+              }
+            }
           }
 
+          console.log(`Chest ${index} spawned at x: ${x}, y: ${y}`);
           initializeChest(this, x, y, scaleFactor, index, chest.lastSpawnTime);
         });
       });
@@ -593,7 +609,8 @@ function Game({
 
       for (const chest of existingChests) {
         const distance = Phaser.Math.Distance.Between(x, y, chest.x, chest.y);
-        if (distance < minDistance) return true;
+        if (distance < minDistance && (chest.x !== x || chest.y !== y))
+          return true;
       }
       return false;
     }
@@ -607,7 +624,7 @@ function Game({
       lastSpawnTime: number | null
     ) {
       const currentTime = Date.now();
-      const respawnInterval = 1 * 30 * 1000;
+      const respawnInterval = 30 * 1000;
 
       if (!lastSpawnTime || currentTime - lastSpawnTime >= respawnInterval) {
         spawnChest(scene, x, y, scaleFactor, id);
@@ -685,7 +702,7 @@ function Game({
         duration: 500,
         ease: "Bounce.easeOut",
         onComplete: () => {
-          console.log("Final chest scale after tween:", chest.scale);
+          console.log(`Chest ${id} scale after tween: ${chest.scale}`);
         },
       });
 
@@ -740,7 +757,7 @@ function Game({
         };
         saveChestData(chestToSave);
 
-        const respawnTime = 1 * 30 * 1000;
+        const respawnTime = 30 * 1000;
         setTimeout(() => {
           if (currentScene) {
             spawnChest(currentScene, x, y, scaleFactor, id);
@@ -754,7 +771,7 @@ function Game({
         (entry) => entry.chest?.visible && entry.chest?.active
       ).length;
       if (lastVisibleCount !== visibleCount) {
-        console.log("Visible chests in update:", visibleCount);
+        console.log(`Visible chests in update: ${visibleCount}`);
         lastVisibleCount = visibleCount;
       }
     }
