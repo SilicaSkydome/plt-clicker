@@ -329,39 +329,51 @@ function App() {
     const userDoc = await getDoc(userDocRef);
     const currentTime = Date.now();
 
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      const activeSession = userData.activeSession;
+    try {
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const activeSession = userData.activeSession;
 
-      if (activeSession && activeSession.timestamp) {
-        console.log("Обнаружена существующая сессия:", activeSession);
-        if (currentTime - activeSession.timestamp < SESSION_TIMEOUT) {
-          window.alert("Game already opened in another window!");
-          //@ts-ignore
-          window.Telegram?.WebApp.close();
-          return false;
+        // Проверяем, существует ли activeSession и валидно ли оно
+        if (
+          activeSession &&
+          activeSession.sessionId &&
+          activeSession.timestamp
+        ) {
+          console.log("Обнаружена существующая сессия:", activeSession);
+          const sessionAge = currentTime - activeSession.timestamp;
+
+          if (sessionAge < SESSION_TIMEOUT) {
+            console.log("Сессия активна, блокируем запуск");
+            window.alert("Game already opened in another window!");
+            //@ts-ignore
+            window.Telegram?.WebApp.close();
+            return false;
+          } else {
+            console.log("Сессия истекла, очищаем и создаём новую");
+            await setDoc(userDocRef, { activeSession: null }, { merge: true });
+          }
         } else {
-          console.log("Сессия истекла, создаём новую");
+          console.log("Сессия отсутствует или некорректна, создаём новую");
         }
       }
-    }
 
-    // Создаём новую сессию
-    const newSessionId = `${userId}_${currentTime}`;
-    try {
-      await setDoc(
-        userDocRef,
-        { activeSession: { sessionId: newSessionId, timestamp: currentTime } },
-        { merge: true }
-      );
-      console.log("Новая сессия создана:", {
+      // Создаём новую сессию
+      const newSessionId = `${userId}_${currentTime}`;
+      const newSession = {
         sessionId: newSessionId,
         timestamp: currentTime,
-      });
+      };
+      await setDoc(userDocRef, { activeSession: newSession }, { merge: true });
+      console.log("Новая сессия создана:", newSession);
       return true;
     } catch (error) {
-      console.error("Ошибка при создании сессии:", error);
-      return false;
+      console.error("Ошибка при управлении сессией:", error);
+      // В случае ошибки Firestore разрешаем запуск, чтобы не блокировать пользователя
+      window.alert(
+        "Error managing session. Please try again or use /reset_session in the bot."
+      );
+      return true;
     }
   };
 
