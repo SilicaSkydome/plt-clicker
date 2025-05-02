@@ -317,6 +317,54 @@ function App() {
     }
   };
 
+  // Функция для проверки и управления сессией
+  const manageSession = async (userId: string) => {
+    if (!userId || userId === "test_user_123") {
+      console.log("Тестовый пользователь, управление сессией отключено");
+      return true;
+    }
+
+    const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 минут
+    const userDocRef = doc(db, "userData", userId);
+    const userDoc = await getDoc(userDocRef);
+    const currentTime = Date.now();
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      const activeSession = userData.activeSession;
+
+      if (activeSession && activeSession.timestamp) {
+        console.log("Обнаружена существующая сессия:", activeSession);
+        if (currentTime - activeSession.timestamp < SESSION_TIMEOUT) {
+          window.alert("Game already opened in another window!");
+          //@ts-ignore
+          window.Telegram?.WebApp.close();
+          return false;
+        } else {
+          console.log("Сессия истекла, создаём новую");
+        }
+      }
+    }
+
+    // Создаём новую сессию
+    const newSessionId = `${userId}_${currentTime}`;
+    try {
+      await setDoc(
+        userDocRef,
+        { activeSession: { sessionId: newSessionId, timestamp: currentTime } },
+        { merge: true }
+      );
+      console.log("Новая сессия создана:", {
+        sessionId: newSessionId,
+        timestamp: currentTime,
+      });
+      return true;
+    } catch (error) {
+      console.error("Ошибка при создании сессии:", error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const newRank = determineRank(balance);
     if (JSON.stringify(newRank) !== JSON.stringify(currentRank)) {
@@ -393,49 +441,12 @@ function App() {
         console.log("Инициализированный пользователь:", userData);
         setUser(userData);
 
-        // Проверка активной сессии только после получения user.id
+        // Проверяем сессию после инициализации пользователя
         if (!isTestUser && userData.id) {
-          const SESSION_KEY = `game_session_${userData.id}`;
-          const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 минут
-          const sessionData = localStorage.getItem(SESSION_KEY);
-
-          if (sessionData) {
-            try {
-              const { sessionId, timestamp } = JSON.parse(sessionData);
-              const currentTime = Date.now();
-
-              console.log("Обнаружена существующая сессия:", {
-                sessionId,
-                timestamp,
-              });
-
-              if (
-                currentTime - timestamp < SESSION_TIMEOUT &&
-                sessionId !== window.name
-              ) {
-                window.alert("Game already opened in another window!");
-                //@ts-ignore
-                window.Telegram?.WebApp.close();
-                return;
-              } else if (currentTime - timestamp >= SESSION_TIMEOUT) {
-                console.log("Сессия истекла, создаём новую");
-                localStorage.removeItem(SESSION_KEY);
-              }
-            } catch (e) {
-              console.error("Ошибка парсинга sessionData:", e);
-              localStorage.removeItem(SESSION_KEY);
-            }
+          const isSessionValid = await manageSession(userData.id);
+          if (!isSessionValid) {
+            return; // Прерываем инициализацию, если сессия невалидна
           }
-
-          // Создаём новую сессию
-          const newSessionId = `${userData.id}_${Date.now()}`;
-          const newSessionData = {
-            sessionId: newSessionId,
-            timestamp: Date.now(),
-          };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(newSessionData));
-          window.name = newSessionId;
-          console.log("Новая сессия создана:", newSessionData);
         }
 
         if (!isTestUser) {
@@ -468,11 +479,15 @@ function App() {
     initializeUser();
 
     // Очистка сессии при закрытии окна
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = async () => {
       if (user.id && user.id !== "test_user_123") {
-        const SESSION_KEY = `game_session_${user.id}`;
-        localStorage.removeItem(SESSION_KEY);
-        console.log("Сессия очищена при закрытии окна");
+        const userDocRef = doc(db, "userData", user.id);
+        try {
+          await setDoc(userDocRef, { activeSession: null }, { merge: true });
+          console.log("Сессия очищена при закрытии окна");
+        } catch (error) {
+          console.error("Ошибка при очистке сессии:", error);
+        }
       }
     };
 
