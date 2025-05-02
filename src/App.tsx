@@ -317,54 +317,141 @@ function App() {
     }
   };
 
-  // Функция для проверки существующих инстансов игры через BroadcastChannel
-  const checkExistingInstance = (userId: string) => {
+  // Функция для проверки и управления сессией через Firestore
+  const manageSession = async (userId: string) => {
     if (!userId || userId === "test_user_123") {
-      console.log("Тестовый пользователь, проверка инстансов отключена");
+      console.log("Тестовый пользователь, управление сессией отключено");
       return true;
     }
 
-    const channel = new BroadcastChannel("game_session");
-    const sessionId = `${userId}_${Date.now()}`;
-    let hasExistingInstance = false;
+    const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 минут
+    const userDocRef = doc(db, "userData", userId);
+    const currentTime = Date.now();
 
-    // Отправляем сообщение другим вкладкам
-    channel.postMessage({ userId, sessionId });
-    console.log("Отправлено сообщение в BroadcastChannel:", {
-      userId,
-      sessionId,
-    });
+    try {
+      const userDoc = await getDoc(userDocRef);
+      let activeSession = null;
 
-    // Слушаем ответы от других вкладок
-    channel.onmessage = (event) => {
-      console.log("Получено сообщение из BroadcastChannel:", event.data);
-      if (event.data.userId === userId && event.data.sessionId !== sessionId) {
-        hasExistingInstance = true;
-        console.log("Обнаружен существующий инстанс игры для userId:", userId);
-        const app = (window as any).Telegram?.WebApp;
-        if (app) {
-          app.sendData(
-            JSON.stringify({
-              type: "sendMessage",
-              chat_id: userId,
-              text: "Game is already open in another window. Please close other instances.",
-            })
-          );
-        }
-        window.alert("Game already opened in another window!");
-        //@ts-ignore
-        window.Telegram?.WebApp.close();
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        activeSession = userData.activeSession;
+        console.log("Получены данные сессии из Firestore:", activeSession);
+      } else {
+        console.log("Документ пользователя не существует, создаём новый");
+        await setDoc(userDocRef, { activeSession: null }, { merge: true });
       }
-    };
 
-    // Даём небольшой таймаут для получения сообщений от других вкладок
-    return new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        channel.close();
-        console.log("Результат проверки инстанса:", { hasExistingInstance });
-        resolve(!hasExistingInstance);
-      }, 500); // 500ms достаточно для обмена сообщениями
-    });
+      // Проверяем валидность сессии
+      if (
+        activeSession &&
+        typeof activeSession === "object" &&
+        activeSession.sessionId &&
+        typeof activeSession.timestamp === "number"
+      ) {
+        const sessionAge = currentTime - activeSession.timestamp;
+        console.log("Сессия найдена:", {
+          sessionId: activeSession.sessionId,
+          timestamp: activeSession.timestamp,
+          sessionAge: sessionAge / 1000 / 60, // Возраст в минутах
+        });
+
+        if (sessionAge < SESSION_TIMEOUT) {
+          console.log("Сессия активна, блокируем запуск");
+          const app = (window as any).Telegram?.WebApp;
+          if (app) {
+            app.sendData(
+              JSON.stringify({
+                type: "sendMessage",
+                chat_id: userId,
+                text: "Game is already open in another window. Please close it or use /reset_session in the bot.",
+              })
+            );
+          }
+          window.alert(
+            "Game already opened in another window! Use /reset_session in the bot to reset."
+          );
+          //@ts-ignore
+          window.Telegram?.WebApp.close();
+          return false;
+        } else {
+          console.log("Сессия истекла, очищаем");
+          await setDoc(userDocRef, { activeSession: null }, { merge: true });
+        }
+      } else {
+        console.log("Сессия отсутствует или некорректна, очищаем");
+        await setDoc(userDocRef, { activeSession: null }, { merge: true });
+      }
+
+      // Создаём новую сессию
+      const newSessionId = `${userId}_${currentTime}`;
+      const newSession = {
+        sessionId: newSessionId,
+        timestamp: currentTime,
+      };
+      await setDoc(userDocRef, { activeSession: newSession }, { merge: true });
+      console.log("Новая сессия создана:", newSession);
+
+      // Запускаем heartbeat для обновления timestamp
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          const currentDoc = await getDoc(userDocRef);
+          const currentSession = currentDoc.data()?.activeSession;
+          if (
+            currentSession &&
+            currentSession.sessionId === newSessionId &&
+            Date.now() - currentSession.timestamp < SESSION_TIMEOUT
+          ) {
+            await setDoc(
+              userDocRef,
+              { activeSession: { ...currentSession, timestamp: Date.now() } },
+              { merge: true }
+            );
+            console.log("Heartbeat: сессия обновлена", {
+              sessionId: newSessionId,
+              timestamp: Date.now(),
+            });
+          } else {
+            clearInterval(heartbeatInterval);
+            console.log(
+              "Heartbeat: сессия устарела или изменена, останавливаем"
+            );
+          }
+        } catch (error) {
+          console.error("Ошибка в heartbeat:", error);
+          clearInterval(heartbeatInterval);
+        }
+      }, 30 * 1000); // Обновляем каждые 30 секунд
+
+      // Очистка при закрытии окна
+      const handleBeforeUnload = async () => {
+        try {
+          await setDoc(userDocRef, { activeSession: null }, { merge: true });
+          console.log("Сессия очищена при закрытии окна");
+          clearInterval(heartbeatInterval);
+        } catch (error) {
+          console.error("Ошибка при очистке сессии:", error);
+        }
+      };
+      window.addEventListener("beforeunload", handleBeforeUnload);
+
+      return true;
+    } catch (error) {
+      console.error("Ошибка при управлении сессией:", error);
+      const app = (window as any).Telegram?.WebApp;
+      if (app) {
+        app.sendData(
+          JSON.stringify({
+            type: "sendMessage",
+            chat_id: userId,
+            text: "Error managing session. Please try again or use /reset_session in the bot.",
+          })
+        );
+      }
+      window.alert(
+        "Error managing session. Please try again or use /reset_session in the bot."
+      );
+      return true; // Разрешаем запуск при ошибке Firestore
+    }
   };
 
   useEffect(() => {
@@ -443,11 +530,11 @@ function App() {
         console.log("Инициализированный пользователь:", userData);
         setUser(userData);
 
-        // Проверяем существующие инстансы игры
+        // Проверяем сессию
         if (!isTestUser && userData.id) {
-          const isInstanceValid = await checkExistingInstance(userData.id);
-          if (!isInstanceValid) {
-            return; // Прерываем инициализацию, если есть другой инстанс
+          const isSessionValid = await manageSession(userData.id);
+          if (!isSessionValid) {
+            return; // Прерываем инициализацию, если сессия невалидна
           }
         }
 
