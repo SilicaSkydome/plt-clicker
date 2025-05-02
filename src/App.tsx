@@ -16,7 +16,7 @@ import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { Task, TaskData, UserData, Referal, Rank } from "./Interfaces";
 
-// Определяем тип для window remota
+// Определяем тип для window.env
 declare global {
   interface Window {
     env?: {
@@ -328,25 +328,6 @@ function App() {
   useEffect(() => {
     const initializeUser = async () => {
       try {
-        // Проверка активной сессии
-        const SESSION_KEY = `game_session_${user.id}`;
-        const sessionId = localStorage.getItem(SESSION_KEY);
-
-        if (sessionId) {
-          console.log("Обнаружена существующая сессия:", sessionId);
-          if (sessionId !== window.name) {
-            window.alert("Game already opened in another window!");
-            //@ts-ignore
-            window.Telegram?.WebApp.close();
-            return;
-          }
-        } else {
-          const newSessionId = `${user.id}_${Date.now()}`;
-          localStorage.setItem(SESSION_KEY, newSessionId);
-          window.name = newSessionId;
-          console.log("Новая сессия создана:", newSessionId);
-        }
-
         const isTestMode = window.env?.VITE_TEST_MODE === "true";
 
         let userData: UserData;
@@ -412,6 +393,51 @@ function App() {
         console.log("Инициализированный пользователь:", userData);
         setUser(userData);
 
+        // Проверка активной сессии только после получения user.id
+        if (!isTestUser && userData.id) {
+          const SESSION_KEY = `game_session_${userData.id}`;
+          const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 минут
+          const sessionData = localStorage.getItem(SESSION_KEY);
+
+          if (sessionData) {
+            try {
+              const { sessionId, timestamp } = JSON.parse(sessionData);
+              const currentTime = Date.now();
+
+              console.log("Обнаружена существующая сессия:", {
+                sessionId,
+                timestamp,
+              });
+
+              if (
+                currentTime - timestamp < SESSION_TIMEOUT &&
+                sessionId !== window.name
+              ) {
+                window.alert("Game already opened in another window!");
+                //@ts-ignore
+                window.Telegram?.WebApp.close();
+                return;
+              } else if (currentTime - timestamp >= SESSION_TIMEOUT) {
+                console.log("Сессия истекла, создаём новую");
+                localStorage.removeItem(SESSION_KEY);
+              }
+            } catch (e) {
+              console.error("Ошибка парсинга sessionData:", e);
+              localStorage.removeItem(SESSION_KEY);
+            }
+          }
+
+          // Создаём новую сессию
+          const newSessionId = `${userData.id}_${Date.now()}`;
+          const newSessionData = {
+            sessionId: newSessionId,
+            timestamp: Date.now(),
+          };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(newSessionData));
+          window.name = newSessionId;
+          console.log("Новая сессия создана:", newSessionData);
+        }
+
         if (!isTestUser) {
           await getUserData(userData);
         } else {
@@ -442,17 +468,20 @@ function App() {
     initializeUser();
 
     // Очистка сессии при закрытии окна
-    const handleUnload = () => {
-      const SESSION_KEY = `game_session_${user.id}`;
-      localStorage.removeItem(SESSION_KEY);
+    const handleBeforeUnload = () => {
+      if (user.id && user.id !== "test_user_123") {
+        const SESSION_KEY = `game_session_${user.id}`;
+        localStorage.removeItem(SESSION_KEY);
+        console.log("Сессия очищена при закрытии окна");
+      }
     };
 
-    window.addEventListener("unload", handleUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener("unload", handleUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [user.id]);
+  }, []);
 
   useEffect(() => {
     const app = (window as any).Telegram?.WebApp;
@@ -507,7 +536,7 @@ function App() {
         // Загружаем баланс
         setBalance(userDataFromDb.balance || 0);
 
-        // Загру:index.htmlжаем энергию и рассчитываем восстановление
+        // Загружаем энергию и рассчитываем восстановление
         const storedEnergy = userDataFromDb.energy ?? 50;
         const storedLastUpdate = userDataFromDb.lastEnergyUpdate ?? Date.now();
         const currentTime = Date.now();
