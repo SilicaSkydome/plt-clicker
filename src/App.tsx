@@ -335,7 +335,7 @@ function App() {
         if (sessionId) {
           console.log("Обнаружена существующая сессия:", sessionId);
           if (sessionId !== window.name) {
-            window.alert("Игра уже открыта в другом окне!");
+            window.alert("Game already opened in another window!");
             //@ts-ignore
             window.Telegram?.WebApp.close();
             return;
