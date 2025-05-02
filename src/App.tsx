@@ -16,7 +16,7 @@ import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { Task, TaskData, UserData, Referal, Rank } from "./Interfaces";
 
-// Определяем тип для window.env
+// Определяем тип для window remota
 declare global {
   interface Window {
     env?: {
@@ -328,6 +328,25 @@ function App() {
   useEffect(() => {
     const initializeUser = async () => {
       try {
+        // Проверка активной сессии
+        const SESSION_KEY = `game_session_${user.id}`;
+        const sessionId = localStorage.getItem(SESSION_KEY);
+
+        if (sessionId) {
+          console.log("Обнаружена существующая сессия:", sessionId);
+          if (sessionId !== window.name) {
+            window.alert("Игра уже открыта в другом окне!");
+            //@ts-ignore
+            window.Telegram?.WebApp.close();
+            return;
+          }
+        } else {
+          const newSessionId = `${user.id}_${Date.now()}`;
+          localStorage.setItem(SESSION_KEY, newSessionId);
+          window.name = newSessionId;
+          console.log("Новая сессия создана:", newSessionId);
+        }
+
         const isTestMode = window.env?.VITE_TEST_MODE === "true";
 
         let userData: UserData;
@@ -421,7 +440,19 @@ function App() {
     };
 
     initializeUser();
-  }, []);
+
+    // Очистка сессии при закрытии окна
+    const handleUnload = () => {
+      const SESSION_KEY = `game_session_${user.id}`;
+      localStorage.removeItem(SESSION_KEY);
+    };
+
+    window.addEventListener("unload", handleUnload);
+
+    return () => {
+      window.removeEventListener("unload", handleUnload);
+    };
+  }, [user.id]);
 
   useEffect(() => {
     const app = (window as any).Telegram?.WebApp;
@@ -476,7 +507,7 @@ function App() {
         // Загружаем баланс
         setBalance(userDataFromDb.balance || 0);
 
-        // Загружаем энергию и рассчитываем восстановление
+        // Загру:index.htmlжаем энергию и рассчитываем восстановление
         const storedEnergy = userDataFromDb.energy ?? 50;
         const storedLastUpdate = userDataFromDb.lastEnergyUpdate ?? Date.now();
         const currentTime = Date.now();
