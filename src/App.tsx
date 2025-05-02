@@ -326,36 +326,59 @@ function App() {
 
     const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 минут
     const userDocRef = doc(db, "userData", userId);
-    const userDoc = await getDoc(userDocRef);
     const currentTime = Date.now();
 
     try {
+      const userDoc = await getDoc(userDocRef);
+      let activeSession = null;
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        const activeSession = userData.activeSession;
+        activeSession = userData.activeSession;
+        console.log("Получены данные сессии из Firestore:", activeSession);
+      } else {
+        console.log("Документ пользователя не существует, создаём новый");
+      }
 
-        // Проверяем, существует ли activeSession и валидно ли оно
-        if (
-          activeSession &&
-          activeSession.sessionId &&
-          activeSession.timestamp
-        ) {
-          console.log("Обнаружена существующая сессия:", activeSession);
-          const sessionAge = currentTime - activeSession.timestamp;
+      // Проверяем валидность сессии
+      if (
+        activeSession &&
+        typeof activeSession === "object" &&
+        activeSession.sessionId &&
+        typeof activeSession.timestamp === "number"
+      ) {
+        const sessionAge = currentTime - activeSession.timestamp;
+        console.log("Сессия найдена:", {
+          sessionId: activeSession.sessionId,
+          timestamp: activeSession.timestamp,
+          sessionAge: sessionAge / 1000 / 60, // Возраст в минутах
+        });
 
-          if (sessionAge < SESSION_TIMEOUT) {
-            console.log("Сессия активна, блокируем запуск");
-            window.alert("Game already opened in another window!");
-            //@ts-ignore
-            window.Telegram?.WebApp.close();
-            return false;
-          } else {
-            console.log("Сессия истекла, очищаем и создаём новую");
-            await setDoc(userDocRef, { activeSession: null }, { merge: true });
+        if (sessionAge < SESSION_TIMEOUT) {
+          console.log("Сессия активна, блокируем запуск");
+          const app = (window as any).Telegram?.WebApp;
+          if (app) {
+            app.sendData(
+              JSON.stringify({
+                type: "sendMessage",
+                chat_id: userId,
+                text: "Game is already open in another window. Please close it or use /reset_session in the bot.",
+              })
+            );
           }
+          window.alert(
+            "Game already opened in another window! Use /reset_session in the bot to reset."
+          );
+          //@ts-ignore
+          window.Telegram?.WebApp.close();
+          return false;
         } else {
-          console.log("Сессия отсутствует или некорректна, создаём новую");
+          console.log("Сессия истекла, очищаем");
+          await setDoc(userDocRef, { activeSession: null }, { merge: true });
         }
+      } else {
+        console.log("Сессия отсутствует или некорректна, очищаем");
+        await setDoc(userDocRef, { activeSession: null }, { merge: true });
       }
 
       // Создаём новую сессию
@@ -369,11 +392,20 @@ function App() {
       return true;
     } catch (error) {
       console.error("Ошибка при управлении сессией:", error);
-      // В случае ошибки Firestore разрешаем запуск, чтобы не блокировать пользователя
+      const app = (window as any).Telegram?.WebApp;
+      if (app) {
+        app.sendData(
+          JSON.stringify({
+            type: "sendMessage",
+            chat_id: userId,
+            text: "Error managing session. Please try again or use /reset_session in the bot.",
+          })
+        );
+      }
       window.alert(
         "Error managing session. Please try again or use /reset_session in the bot."
       );
-      return true;
+      return true; // Разрешаем запуск при ошибке Firestore
     }
   };
 
