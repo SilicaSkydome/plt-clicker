@@ -15,16 +15,6 @@ function ProgressBar({ balance, currentRank, ranks }: ProgressBarProps) {
     (rank) => rank.title === currentRank.title
   );
 
-  // Определяем минимальное и максимальное значение золота для текущего ранга
-  const minGold = currentRank.goldMin;
-  const maxGold = currentRank.goldMax ?? Infinity; // Если goldMax равно null (для Captain), используем Infinity
-
-  // Вычисляем прогресс в текущем ранге
-  const progressInRank = Math.min(
-    ((balance - minGold) / (maxGold - minGold)) * 100,
-    100
-  ); // Процент прогресса в текущем ранге
-
   // Определяем следующий ранг и сколько золота осталось до него
   const nextRank =
     currentRankIndex < ranks.length - 1 ? ranks[currentRankIndex + 1] : null;
@@ -37,7 +27,7 @@ function ProgressBar({ balance, currentRank, ranks }: ProgressBarProps) {
         <div className="label">
           next rank
           <br />
-          <span>{nextRank ? nextRank.goldMin.toFixed(0) : ""}</span>
+          <span>{nextRank ? goldToNextRank.toFixed(0) : ""}</span>
         </div>
       </div>
     </div>

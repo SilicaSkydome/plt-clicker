@@ -41,8 +41,9 @@
     background-size: 110% 60%, 150% 50%;
   }
   .game-bg-night {
-    background: url("./assets/img/seaAnimated.gif") no-repeat bottom center,
-      url("./assets/img/sky_night.webp") no-repeat top center,
+    background: url("./assets/img/sea_night_gif-min.gif") no-repeat bottom
+        center,
+      url("./assets/img/sky_night.png") no-repeat top center,
       linear-gradient(to bottom, transparent 40%, #000 60%);
     background-size: 110% 60%, 150% 50%;
   }

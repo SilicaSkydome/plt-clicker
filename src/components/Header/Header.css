@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   height: 70px;
-  padding: 40px;
+  padding: 20px 40px;
   z-index: 100;
   margin-top: 30px;
 }
@@ -18,7 +18,7 @@
 
   background: linear-gradient(0deg, #212324, #212324);
 
-  padding: 20px;
+  padding: 0 20px;
   z-index: -2;
   border-radius: 35px;
 }
@@ -51,15 +51,13 @@
 .compass {
   flex: 1;
 }
-
 .balance {
+  flex: 1;
   display: flex;
   flex-direction: row;
   justify-content: end;
-  margin-right: 20px;
   align-items: center;
   gap: 5px;
-  flex: 1;
 }
 .balance img {
   width: 50px;
@@ -235,4 +233,48 @@
 }
 .isOpen {
   display: flex !important;
+}
+@media (max-width: 550px) {
+  .header {
+    padding: 10px 20px;
+  }
+  .balance {
+    transform: scale(0.9);
+  }
+  .compass {
+    margin: 0;
+    padding: 0;
+  }
+  .progressBar {
+    margin: 0;
+    padding: 0;
+  }
+}
+@media (max-width: 425px) {
+  .header {
+    padding: 5px 10px;
+  }
+  .headerRow {
+    gap: 0;
+  }
+  .balance {
+    transform: scale(0.8);
+  }
+}
+@media (max-width: 375px) {
+  .header {
+    padding: 0 5px;
+  }
+  .headerRow {
+    gap: 0;
+    justify-content: start;
+  }
+  .profile {
+  }
+  .compass {
+    font-size: 8px;
+  }
+  .balance {
+    transform: scale(0.7);
+  }
 }
