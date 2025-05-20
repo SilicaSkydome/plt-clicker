@@ -366,7 +366,7 @@ function App() {
         console.log("Сессия найдена:", {
           sessionId: activeSession.sessionId,
           timestamp: activeSession.timestamp,
-          sessionAge: sessionAge / 1000 / 60, // Возраст в минутах
+          sessionAge: sessionAge / 1000 / 60,
         });
 
         if (sessionAge < SESSION_TIMEOUT) {
@@ -434,7 +434,7 @@ function App() {
           console.error("Ошибка в heartbeat:", error);
           clearInterval(heartbeatInterval);
         }
-      }, 30 * 1000); // Обновляем каждые 30 секунд
+      }, 30 * 1000);
 
       // Очистка при закрытии окна
       const handleBeforeUnload = async () => {
@@ -447,6 +447,21 @@ function App() {
         }
       };
       window.addEventListener("beforeunload", handleBeforeUnload);
+
+      // Обработка закрытия Telegram Web App
+      const app = (window as any).Telegram?.WebApp;
+      if (app) {
+        const handleWebAppClose = async () => {
+          try {
+            await setDoc(userDocRef, { activeSession: null }, { merge: true });
+            console.log("Сессия очищена при закрытии Telegram Web App");
+            clearInterval(heartbeatInterval);
+          } catch (error) {
+            console.error("Ошибка при очистке сессии в Telegram:", error);
+          }
+        };
+        app.onEvent("web_app_close", handleWebAppClose);
+      }
 
       return true;
     } catch (error) {
