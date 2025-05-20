@@ -1,6 +1,7 @@
 import React from "react";
 import "./ProgressBar.css";
 import { Rank } from "../../../Interfaces"; // Импортируем интерфейс Rank
+import Compass from "../../../assets/img/compass.svg"; // Импортируем изображение компаса
 
 interface ProgressBarProps {
   balance: number; // Текущий баланс игрока
@@ -31,18 +32,12 @@ function ProgressBar({ balance, currentRank, ranks }: ProgressBarProps) {
 
   return (
     <div className="progressBar">
-      <div className="progressBar-container">
-        <div
-          className="progressBar-fill"
-          style={{ width: `${progressInRank}%` }} // Динамически задаем ширину заполненной части
-        />
-      </div>
-      <div className="label-container">
-        <div
-          className="progressBar-label"
-          style={{ left: `${progressInRank}%` }}
-        >
-          {goldToNextRank.toFixed(0)}
+      <div className="compass">
+        <img src={Compass} alt="Compass" />
+        <div className="label">
+          next rank
+          <br />
+          <span>{nextRank ? nextRank.goldMin.toFixed(0) : ""}</span>
         </div>
       </div>
     </div>

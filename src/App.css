@@ -4,7 +4,6 @@
   min-width: 325px;
   margin: 0 auto;
   text-align: center;
-
   overflow: hidden;
 }
 .app {
@@ -12,7 +11,6 @@
   position: relative;
   flex-direction: column;
   height: 100vh;
-
   color: white;
   font-family: Arial, sans-serif;
   overflow: hidden;
@@ -23,13 +21,28 @@
     linear-gradient(to bottom, transparent 40%, #000 60%);
   background-size: 110% 60%, 150% 50%;
 }
+.game-bg-night {
+  background: url("./assets/img/sea_night_gif-min.gif") no-repeat bottom center,
+    url("./assets/img/sky_night.png") no-repeat top center,
+    linear-gradient(to bottom, transparent 40%, #000 60%);
+  background-size: 110% 60%, 150% 50%;
+}
 .default-bg {
   background: #1e1e1e;
+}
+.default-bg-night {
+  background: #0a0a0a;
 }
 @media (max-width: 375px) {
   .game-bg {
     background: url("./assets/img/seaAnimated.gif") no-repeat bottom center,
       url("./assets/img/sky.webp") no-repeat top center,
+      linear-gradient(to bottom, transparent 40%, #000 60%);
+    background-size: 110% 60%, 150% 50%;
+  }
+  .game-bg-night {
+    background: url("./assets/img/seaAnimated.gif") no-repeat bottom center,
+      url("./assets/img/sky_night.webp") no-repeat top center,
       linear-gradient(to bottom, transparent 40%, #000 60%);
     background-size: 110% 60%, 150% 50%;
   }

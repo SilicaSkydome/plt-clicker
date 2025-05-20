@@ -1,0 +1,36 @@
+.energyBar {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: absolute;
+  bottom: 100px; /* Располагаем над навигационным меню (предполагая высоту меню около 50px) */
+  z-index: 10; /* Убедимся, что бар отображается поверх игрового контейнера */
+}
+
+.energyBar::after {
+  content: url("../../../assets/img/battery-charging.svg");
+  position: relative;
+  width: 22px;
+  height: 22px;
+  z-index: 1; /* Помещаем фон за прогресс бар */
+  top: -40px; /* Поднимаем иконку над прогресс баром */
+  left: -42%;
+}
+
+.energyBar-container {
+  width: 90%;
+  height: 10px;
+  background-color: #846731; /* Серый фон для пустой части */
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.energyBar-fill {
+  height: 100%;
+  background: linear-gradient(266.75deg, #f9d663 7.87%, #b48d0a 86.9%);
+  transition: width 0.3s ease-in-out; /* Плавная анимация изменения прогресса */
+  border-radius: 5px;
+}

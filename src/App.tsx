@@ -152,6 +152,12 @@ const determineRank = (gold: number): Rank => {
   return RANKS[0];
 };
 
+// Функция для определения времени суток
+const isNightTime = (): boolean => {
+  const hour = new Date().getHours();
+  return hour >= 18 || hour < 6; // Ночь с 18:00 до 6:00
+};
+
 const testUser: UserData = {
   id: "test_user_123",
   firstName: "Test",
@@ -194,13 +200,21 @@ const AppContent = ({
   maxEnergy,
 }: AppContentProps) => {
   const location = useLocation();
+  const [isNight, setIsNight] = useState(isNightTime());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsNight(isNightTime());
+    }, 60000); // Проверяем каждую минуту
+    return () => clearInterval(interval);
+  }, []);
 
   const getBackgroundClass = () => {
     switch (location.pathname) {
       case "/":
-        return "game-bg";
+        return isNight ? "game-bg-night" : "game-bg";
       default:
-        return "default-bg";
+        return isNight ? "default-bg-night" : "default-bg";
     }
   };
 
@@ -210,7 +224,7 @@ const AppContent = ({
 
   return (
     <div className={`app ${getBackgroundClass()}`}>
-      <Header balance={balance} user={user} />
+      <Header balance={balance} user={user} ranks={RANKS} />
       <Routes>
         <Route
           path="/"

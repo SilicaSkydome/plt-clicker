@@ -7,7 +7,7 @@ import ring2 from "../../assets/img/circles/2.png";
 import ring3 from "../../assets/img/circles/3.png";
 import shipPlaceholder from "../../assets/img/ship.webp";
 import "./Game.css";
-import ProgressBar from "../../components/Common/ProgressBar/ProgressBar";
+import EnergyBar from "../../components/Common/EnergyBar/EnergyBar";
 import { db } from "../../../firebaseConfig";
 import {
   doc,
@@ -801,14 +801,8 @@ function Game({
 
   return (
     <>
-      <div className="text">
-        {currentRank.title}, Until the next rank is left:
-      </div>
-      <ProgressBar balance={balance} currentRank={currentRank} ranks={ranks} />
-      <div className="text">
-        Energy: {displayEnergy}/{maxEnergy}
-      </div>
       <div ref={gameRef} className="game-container" />
+      <EnergyBar currentEnergy={displayEnergy} maxEnergy={maxEnergy} />
     </>
   );
 }

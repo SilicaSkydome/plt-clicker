@@ -1,122 +1,94 @@
 .header {
-  padding: 10px;
-  text-align: center;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: 720px;
-
-  z-index: 1000;
+  position: relative;
+  width: 100%;
+  height: 70px;
+  padding: 40px;
+  z-index: 100;
+  margin-top: 30px;
 }
+
 .headerRow {
+  width: 100%;
+  height: 70px;
   display: flex;
+  position: relative;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+
+  background: linear-gradient(0deg, #212324, #212324);
+
+  padding: 20px;
+  z-index: -2;
+  border-radius: 35px;
+}
+.headerRow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+
   width: 100%;
+  height: 100%;
+
+  background: radial-gradient(
+    72.1% 107.67% at 55.43% 29.25%,
+    #6d6147 0%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  z-index: -1;
+  border-radius: 35px;
 }
 .profile {
   flex: 1;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 5px;
 }
 .profilePicture {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  background: linear-gradient(
-    90deg,
-    #fff09a 2.78%,
-    #767041 50.42%,
-    #fff09a 100%
-  );
+  width: 30px;
+  height: 30px;
 
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  margin-left: 10px;
-
-  cursor: pointer;
-}
-.profilePicture img {
-  position: relative;
-  width: 40px;
-  height: 40px;
   border-radius: 50%;
 }
-
-.logo {
-  flex: 3;
-  position: relative;
-}
-.logo img {
-  width: 200px;
-}
-.headerRow2 {
-  justify-content: center;
-}
-.balance {
+.compass {
   flex: 1;
+}
+
+.balance {
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  justify-content: end;
+  margin-right: 20px;
   align-items: center;
-  gap: 10px;
-
-  background: linear-gradient(360deg, #f1d781 -1.72%, #5c5231 98.28%),
-    linear-gradient(355.58deg, #f9d663 11.33%, #ffe99f 94.62%),
-    radial-gradient(
-      52.53% 99.05% at 47.47% 101.69%,
-      #ffffff 0%,
-      rgba(147, 125, 36, 0) 100%
-    );
-
-  padding: 2px 5px;
-  border-radius: 20px;
+  gap: 5px;
+  flex: 1;
 }
-.balanceImg {
-  width: 24px;
-  height: 24px;
+.balance img {
+  width: 50px;
+  height: 50px;
+}
+.balanceContent {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-}
-.balanceImg img {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-}
-.balanceText {
-  display: flex;
-  flex-direction: row;
+  flex-direction: column;
   justify-content: center;
   align-items: start;
-
-  font-family: "Inter";
-  font-weight: 400;
-  font-size: 8px;
-  line-height: 100%;
-
-  color: #d09921;
+  font-size: 12px;
 }
 .balanceAmount {
-  font-family: "Inter", sans-serif;
-  font-weight: 600;
-  font-size: 10px;
-  line-height: 100%;
-
-  color: #8e6200;
-  text-align: left;
+  color: #d9b25d;
+  font-size: 14px;
 }
+
+.profilePicture img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
 .profileModal {
   position: absolute;
   width: 90%;
-  height: 70%;
+  height: 70vh;
+  left: 50%;
+  transform: translateX(-50%);
 
   background: #212324;
   bottom: 0;

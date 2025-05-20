@@ -1,16 +1,18 @@
 import React from "react";
 import "./Header.css";
 import Logo from "../../assets/Logo.png";
-import Token from "../../assets/img/Token.png";
+import Token from "../../assets/img/TOKEN.svg";
 import { useClickAway } from "@uidotdev/usehooks";
-import { UserData } from "../../Interfaces";
+import { Rank, UserData } from "../../Interfaces";
+import ProgressBar from "../Common/ProgressBar/ProgressBar";
 
 interface HeaderProps {
   balance: number;
   user: UserData | null;
+  ranks: Rank[];
 }
 
-function Header({ user, balance }: HeaderProps) {
+function Header({ user, balance, ranks }: HeaderProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const handleProfileClick = () => {
@@ -41,28 +43,34 @@ function Header({ user, balance }: HeaderProps) {
   };
 
   return (
-    <div className="header">
-      <div className="headerRow">
-        <div className="profile" onClick={() => handleProfileClick()}>
-          <div className="profilePicture">
-            <img src={user?.photoUrl} alt="avatar" />
+    <>
+      <div className="header">
+        <div className="headerRow">
+          <div className="profile" onClick={() => handleProfileClick()}>
+            <div className="profilePicture">
+              <img src={user?.photoUrl} alt="avatar" />
+            </div>
           </div>
-        </div>
-        <div className="logo">
-          <img src={Logo} alt="Logo" />
-        </div>
-        <div className="balance">
-          <div className="balanceImg">
-            <img src={Token} alt="" />
+          <div className="compass">
+            {user?.rank && (
+              <ProgressBar
+                balance={balance}
+                currentRank={user.rank}
+                ranks={ranks || []}
+              />
+            )}
           </div>
-          <div className="balanceContent">
-            <div className="balanceText">
+          <div className="balance">
+            <div className="balanceImg">
+              <img src={Token} alt="" />
+            </div>
+            <div className="balanceContent">
+              Balance
               <div className="balanceAmount">{formatBalance(balance)}</div>
             </div>
           </div>
         </div>
       </div>
-      <div className="headerRow headerRow2"></div>
       {/* 
       // @ts-ignore */}
       <div ref={ref} className={`profileModal ${isOpen ? "isOpen" : ""}`}>
@@ -78,7 +86,7 @@ function Header({ user, balance }: HeaderProps) {
         <div className="seaCount">You have opened 4 seas</div>
         <div className="tillNext">Until the next sea is left:</div>
       </div>
-    </div>
+    </>
   );
 }
 
