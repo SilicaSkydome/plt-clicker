@@ -1,7 +1,7 @@
 import React from "react";
 import "./ProgressBar.css";
 import { Rank } from "../../../Interfaces"; // Импортируем интерфейс Rank
-import Compass from "../../../assets/img/compass.svg"; // Импортируем изображение компаса
+import Compass from "../../../assets/img/Compass.svg"; // Импортируем изображение компаса
 
 interface ProgressBarProps {
   balance: number; // Текущий баланс игрока
