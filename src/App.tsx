@@ -207,7 +207,7 @@ const AppContent = ({
   useEffect(() => {
     const interval = setInterval(() => {
       setIsNight(isNightTime());
-    }, 60000);
+    }, 60000); // Проверяем каждую минуту
     return () => clearInterval(interval);
   }, []);
 
@@ -229,8 +229,8 @@ const AppContent = ({
       <div className="app session-blocked">
         <h1>Session Blocked</h1>
         <p>
-          Game already opened in another window! Use /reset_session in the bot
-          to reset.
+          Game already opened in another window! Please close other instances or
+          wait a few seconds.
         </p>
       </div>
     );
@@ -346,130 +346,102 @@ function App() {
     }
   };
 
-  const manageSession = async (userId: string) => {
+  // Локальная проверка активности сессии
+  const manageSession = (userId: string) => {
     if (!userId || userId === "test_user_123") {
       console.log("Тестовый пользователь, управление сессией отключено");
       return true;
     }
 
-    const SESSION_TIMEOUT = 5 * 60 * 1000;
-    const HEARTBEAT_INTERVAL = 10 * 1000;
-    const userDocRef = doc(db, "userData", userId);
+    const CHECK_INTERVAL = 5 * 1000; // 5 секунд
+    const SESSION_TIMEOUT = 5 * 1000; // 5 секунд
+
+    // Проверяем, можно ли запустить приложение
+    const lastHeartbeat = localStorage.getItem(`heartbeat_${userId}`);
     const currentTime = Date.now();
 
-    try {
-      const localSession = localStorage.getItem(`session_${userId}`);
-      if (localSession) {
-        console.log("Сессия уже активна в localStorage:", localSession);
-        const userDoc = await getDoc(userDocRef);
-        let activeSession = null;
+    if (lastHeartbeat) {
+      const lastHeartbeatTime = parseInt(lastHeartbeat, 10);
+      const timeSinceLastHeartbeat = currentTime - lastHeartbeatTime;
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          activeSession = userData.activeSession;
-        }
+      if (timeSinceLastHeartbeat < SESSION_TIMEOUT) {
+        console.log("Сессия активна в другой вкладке, блокируем запуск");
+        setIsSessionBlocked(true);
+        return false;
+      }
+    }
+
+    // Записываем начальную метку времени
+    localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
+
+    // Запускаем heartbeat для обновления метки времени
+    heartbeatIntervalRef.current = setInterval(() => {
+      const currentTime = Date.now();
+      localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
+      console.log("Heartbeat: метка времени обновлена", {
+        timestamp: currentTime,
+      });
+
+      // Проверяем, не появилась ли другая активная сессия
+      const lastHeartbeatCheck = localStorage.getItem(`heartbeat_${userId}`);
+      if (lastHeartbeatCheck) {
+        const lastHeartbeatTime = parseInt(lastHeartbeatCheck, 10);
+        const timeSinceLastHeartbeat = currentTime - lastHeartbeatTime;
 
         if (
-          activeSession &&
-          activeSession.sessionId !== localSession &&
-          currentTime - activeSession.timestamp < SESSION_TIMEOUT
+          timeSinceLastHeartbeat > SESSION_TIMEOUT &&
+          lastHeartbeatTime !== currentTime
         ) {
-          console.log("Сессия активна в другой вкладке, блокируем запуск");
+          console.log(
+            "Сессия истекла или перехвачена другой вкладкой, блокируем"
+          );
           setIsSessionBlocked(true);
-          return false;
-        }
-      }
-
-      const userDoc = await getDoc(userDocRef);
-      let activeSession = null;
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        activeSession = userData.activeSession;
-      } else {
-        await setDoc(userDocRef, { activeSession: null }, { merge: true });
-      }
-
-      if (
-        activeSession &&
-        typeof activeSession === "object" &&
-        activeSession.sessionId
-      ) {
-        const sessionAge = currentTime - activeSession.timestamp;
-        if (sessionAge < SESSION_TIMEOUT) {
-          console.log("Сессия истекла, очищаем");
-          await setDoc(userDocRef, { activeSession: null }, { merge: true });
-        }
-      }
-
-      const newSessionId = `${userId}_${currentTime}`;
-      const newSession = { sessionId: newSessionId, timestamp: currentTime };
-      await setDoc(userDocRef, { activeSession: newSession }, { merge: true });
-      localStorage.setItem(`session_${userId}`, newSessionId);
-
-      heartbeatIntervalRef.current = setInterval(async () => {
-        try {
-          const currentDoc = await getDoc(userDocRef);
-          const currentSession = currentDoc.data()?.activeSession;
-          if (
-            currentSession &&
-            currentSession.sessionId === newSessionId &&
-            Date.now() - currentSession.timestamp < SESSION_TIMEOUT
-          ) {
-            await updateDoc(userDocRef, {
-              "activeSession.timestamp": Date.now(),
-            });
-          } else {
-            clearInterval(heartbeatIntervalRef.current!);
-            setIsSessionBlocked(true);
-          }
-        } catch (error) {
-          console.error("Ошибка в heartbeat:", error);
-          clearInterval(heartbeatIntervalRef.current!);
-          setIsSessionBlocked(true);
-        }
-      }, HEARTBEAT_INTERVAL);
-
-      const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === `session_${userId}`) {
-          const newSessionIdFromStorage = event.newValue;
-          if (
-            newSessionIdFromStorage &&
-            newSessionIdFromStorage !== newSessionId
-          ) {
-            console.log("Обнаружено изменение сессии в другой вкладке");
-            setIsSessionBlocked(true);
-            clearInterval(heartbeatIntervalRef.current!);
-          }
-        }
-      };
-      window.addEventListener("storage", handleStorageChange);
-
-      const handleBeforeUnload = async () => {
-        try {
-          localStorage.removeItem(`session_${userId}`);
-          await setDoc(userDocRef, { activeSession: null }, { merge: true });
           if (heartbeatIntervalRef.current) {
             clearInterval(heartbeatIntervalRef.current);
           }
-        } catch (error) {
-          console.error("Ошибка при очистке сессии:", error);
         }
-      };
-      window.addEventListener("beforeunload", handleBeforeUnload);
+      }
+    }, CHECK_INTERVAL);
 
-      return () => {
-        window.removeEventListener("storage", handleStorageChange);
-        window.removeEventListener("beforeunload", handleBeforeUnload);
-        if (heartbeatIntervalRef.current) {
-          clearInterval(heartbeatIntervalRef.current);
+    // Реагируем на изменения в localStorage (другие вкладки)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === `heartbeat_${userId}`) {
+        const newHeartbeat = event.newValue;
+        if (newHeartbeat) {
+          const newHeartbeatTime = parseInt(newHeartbeat, 10);
+          const timeSinceHeartbeat = currentTime - newHeartbeatTime;
+
+          if (
+            timeSinceHeartbeat < SESSION_TIMEOUT &&
+            newHeartbeatTime !== currentTime
+          ) {
+            console.log("Обнаружено изменение метки времени в другой вкладке");
+            setIsSessionBlocked(true);
+            if (heartbeatIntervalRef.current) {
+              clearInterval(heartbeatIntervalRef.current);
+            }
+          }
         }
-      };
-    } catch (error) {
-      console.error("Ошибка при управлении сессией:", error);
-      setIsSessionBlocked(true);
-      return false;
-    }
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // Очистка при закрытии окна
+    const handleBeforeUnload = () => {
+      localStorage.removeItem(`heartbeat_${userId}`);
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+    };
   };
 
   useEffect(() => {
@@ -539,7 +511,7 @@ function App() {
         setUser(userData);
 
         if (!isTestUser && userData.id) {
-          const cleanup = await manageSession(userData.id);
+          const cleanup = manageSession(userData.id);
           if (typeof cleanup === "function") {
             cleanup();
           }
