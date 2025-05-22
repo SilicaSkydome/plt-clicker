@@ -299,6 +299,7 @@ function App() {
     useState<number>(Date.now());
   const maxEnergy = 50;
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionIdRef = useRef<string | null>(null); // Храним sessionId локально
 
   const prevDataRef = useRef({
     balance: 0,
@@ -371,14 +372,45 @@ function App() {
       }
     }
 
+    // Создаём уникальный sessionId для текущей вкладки
+    const newSessionId = `${userId}_${currentTime}`;
+    sessionIdRef.current = newSessionId;
+
     // Если сессия не активна, начинаем обновлять метку
     localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
+    console.log("Запуск новой сессии", {
+      sessionId: newSessionId,
+      timestamp: currentTime,
+    });
 
     // Запускаем heartbeat для обновления метки времени каждые 5 секунд
     heartbeatIntervalRef.current = setInterval(() => {
       const currentTime = Date.now();
+      // Проверяем, не изменилась ли метка другим окном
+      const lastHeartbeatCheck = localStorage.getItem(`heartbeat_${userId}`);
+      if (lastHeartbeatCheck) {
+        const lastHeartbeatTime = parseInt(lastHeartbeatCheck, 10);
+        const timeSinceLastHeartbeat = currentTime - lastHeartbeatTime;
+
+        if (timeSinceLastHeartbeat < SESSION_TIMEOUT) {
+          // Если метка свежая, но не от этой вкладки, блокируем
+          const lastSessionId = localStorage.getItem(`session_${userId}`);
+          if (lastSessionId !== sessionIdRef.current) {
+            console.log("Сессия перехвачена другой вкладкой, блокируем");
+            setIsSessionBlocked(true);
+            if (heartbeatIntervalRef.current) {
+              clearInterval(heartbeatIntervalRef.current);
+            }
+            return;
+          }
+        }
+      }
+
+      // Обновляем метку времени и sessionId
       localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
+      localStorage.setItem(`session_${userId}`, sessionIdRef.current!);
       console.log("Heartbeat: метка времени обновлена", {
+        sessionId: sessionIdRef.current,
         timestamp: currentTime,
       });
     }, CHECK_INTERVAL);
@@ -392,10 +424,15 @@ function App() {
           const timeSinceHeartbeat = currentTime - newHeartbeatTime;
 
           if (timeSinceHeartbeat < SESSION_TIMEOUT) {
-            console.log("Обнаружено изменение метки времени в другой вкладке");
-            setIsSessionBlocked(true);
-            if (heartbeatIntervalRef.current) {
-              clearInterval(heartbeatIntervalRef.current);
+            const lastSessionId = localStorage.getItem(`session_${userId}`);
+            if (lastSessionId !== sessionIdRef.current) {
+              console.log(
+                "Обнаружено изменение метки времени в другой вкладке"
+              );
+              setIsSessionBlocked(true);
+              if (heartbeatIntervalRef.current) {
+                clearInterval(heartbeatIntervalRef.current);
+              }
             }
           }
         }
