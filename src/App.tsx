@@ -25,7 +25,7 @@ declare global {
   }
 }
 
-// Определяем ранги на основе таблицы
+// Определяем ранги на основе таблицы*
 const RANKS: Rank[] = [
   {
     title: "Cabin Boy",
@@ -224,7 +224,6 @@ const AppContent = ({
 
   return (
     <div className={`app ${getBackgroundClass()}`}>
-      <Header balance={balance} user={user} ranks={RANKS} />
       <Routes>
         <Route
           path="/"
@@ -232,6 +231,7 @@ const AppContent = ({
             <Game
               balance={balance}
               setBalance={setBalance}
+              user={user}
               currentRank={currentRank}
               ranks={RANKS}
               initialEnergy={initialEnergy}
@@ -355,12 +355,11 @@ function App() {
         await setDoc(userDocRef, { activeSession: null }, { merge: true });
       }
 
-      // Проверяем валидность сессии
+      // Проверяем валидность сессии с учётом всех вкладок
       if (
         activeSession &&
         typeof activeSession === "object" &&
-        activeSession.sessionId &&
-        typeof activeSession.timestamp === "number"
+        activeSession.sessionId
       ) {
         const sessionAge = currentTime - activeSession.timestamp;
         console.log("Сессия найдена:", {
@@ -370,42 +369,29 @@ function App() {
         });
 
         if (sessionAge < SESSION_TIMEOUT) {
-          console.log("Сессия активна, блокируем запуск");
-          const app = (window as any).Telegram?.WebApp;
-          if (app) {
-            app.sendData(
-              JSON.stringify({
-                type: "sendMessage",
-                chat_id: userId,
-                text: "Game is already open in another window. Please close it or use /reset_session in the bot.",
-              })
+          // Проверяем, активна ли сессия на других вкладках через localStorage
+          const localSession = localStorage.getItem(`session_${userId}`);
+          if (localSession && localSession !== activeSession.sessionId) {
+            console.log("Сессия активна в другой вкладке, блокируем запуск");
+            window.alert(
+              "Game already opened in another window! Use /reset_session in the bot to reset."
             );
+            return false;
           }
-          window.alert(
-            "Game already opened in another window! Use /reset_session in the bot to reset."
-          );
-          //@ts-ignore
-          window.Telegram?.WebApp.close();
-          return false;
         } else {
           console.log("Сессия истекла, очищаем");
           await setDoc(userDocRef, { activeSession: null }, { merge: true });
         }
-      } else {
-        console.log("Сессия отсутствует или некорректна, очищаем");
-        await setDoc(userDocRef, { activeSession: null }, { merge: true });
       }
 
       // Создаём новую сессию
       const newSessionId = `${userId}_${currentTime}`;
-      const newSession = {
-        sessionId: newSessionId,
-        timestamp: currentTime,
-      };
+      const newSession = { sessionId: newSessionId, timestamp: currentTime };
       await setDoc(userDocRef, { activeSession: newSession }, { merge: true });
+      localStorage.setItem(`session_${userId}`, newSessionId);
       console.log("Новая сессия создана:", newSession);
 
-      // Запускаем heartbeat для обновления timestamp
+      // Запускаем heartbeat
       const heartbeatInterval = setInterval(async () => {
         try {
           const currentDoc = await getDoc(userDocRef);
@@ -415,20 +401,16 @@ function App() {
             currentSession.sessionId === newSessionId &&
             Date.now() - currentSession.timestamp < SESSION_TIMEOUT
           ) {
-            await setDoc(
-              userDocRef,
-              { activeSession: { ...currentSession, timestamp: Date.now() } },
-              { merge: true }
-            );
+            await updateDoc(userDocRef, {
+              "activeSession.timestamp": Date.now(),
+            });
             console.log("Heartbeat: сессия обновлена", {
               sessionId: newSessionId,
               timestamp: Date.now(),
             });
           } else {
             clearInterval(heartbeatInterval);
-            console.log(
-              "Heartbeat: сессия устарела или изменена, останавливаем"
-            );
+            console.log("Heartbeat: сессия устарела, останавливаем");
           }
         } catch (error) {
           console.error("Ошибка в heartbeat:", error);
@@ -439,6 +421,7 @@ function App() {
       // Очистка при закрытии окна
       const handleBeforeUnload = async () => {
         try {
+          localStorage.removeItem(`session_${userId}`);
           await setDoc(userDocRef, { activeSession: null }, { merge: true });
           console.log("Сессия очищена при закрытии окна");
           clearInterval(heartbeatInterval);
@@ -448,38 +431,13 @@ function App() {
       };
       window.addEventListener("beforeunload", handleBeforeUnload);
 
-      // Обработка закрытия Telegram Web App
-      const app = (window as any).Telegram?.WebApp;
-      if (app) {
-        const handleWebAppClose = async () => {
-          try {
-            await setDoc(userDocRef, { activeSession: null }, { merge: true });
-            console.log("Сессия очищена при закрытии Telegram Web App");
-            clearInterval(heartbeatInterval);
-          } catch (error) {
-            console.error("Ошибка при очистке сессии в Telegram:", error);
-          }
-        };
-        app.onEvent("web_app_close", handleWebAppClose);
-      }
-
       return true;
     } catch (error) {
       console.error("Ошибка при управлении сессией:", error);
-      const app = (window as any).Telegram?.WebApp;
-      if (app) {
-        app.sendData(
-          JSON.stringify({
-            type: "sendMessage",
-            chat_id: userId,
-            text: "Error managing session. Please try again or use /reset_session in the bot.",
-          })
-        );
-      }
       window.alert(
         "Error managing session. Please try again or use /reset_session in the bot."
       );
-      return true; // Разрешаем запуск при ошибке Firestore
+      return true; // Разрешаем запуск при ошибке
     }
   };
 

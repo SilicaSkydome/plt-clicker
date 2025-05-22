@@ -19,8 +19,10 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { Rank, UserData } from "../../Interfaces";
+import Header from "../../components/Header/Header";
 
 interface GameProps {
+  user: UserData;
   balance: number;
   setBalance: React.Dispatch<React.SetStateAction<number>>;
   currentRank: Rank;
@@ -47,6 +49,7 @@ interface ClickEvent {
 }
 
 function Game({
+  user,
   balance,
   setBalance,
   currentRank,
@@ -71,12 +74,29 @@ function Game({
     []
   );
   const isSavingEnergyRef = useRef(false);
+  const boatRef = useRef<Phaser.GameObjects.Image | null>(null);
+  const currentSceneRef = useRef<Phaser.Scene | null>(null);
+  const chestDataRef = useRef<
+    Array<{
+      chest: Phaser.GameObjects.Sprite | null;
+      rings: Phaser.GameObjects.Sprite[];
+      x: number;
+      y: number;
+      id: number;
+    }>
+  >([]);
+  const [baseWidth, setBaseWidth] = useState(window.innerWidth);
+  const [baseHeight, setBaseHeight] = useState(window.innerHeight - 100);
+  const [scaleFactor, setScaleFactor] = useState(() => {
+    const gameWidth = window.innerWidth;
+    const referenceWidth = 360;
+    return gameWidth / referenceWidth;
+  });
 
   const syncDisplayEnergy = () => {
     setDisplayEnergy(energyRef.current);
   };
 
-  // Save energy to cookies
   const saveEnergyToCookies = (energy: number, updateTime: number) => {
     try {
       Cookies.set(
@@ -90,7 +110,6 @@ function Game({
     }
   };
 
-  // Load energy from cookies
   const loadEnergyFromCookies = () => {
     try {
       const cookieData = Cookies.get(`energy_${telegramUserId}`);
@@ -113,7 +132,6 @@ function Game({
     return null;
   };
 
-  // Save energy with queue
   const saveEnergyWithQueue = async (energy: number, updateTime: number) => {
     saveEnergyToCookies(energy, updateTime);
     energySaveQueueRef.current.push({ energy, updateTime });
@@ -139,20 +157,17 @@ function Game({
     isSavingEnergyRef.current = false;
   };
 
-  // Sync energy on mount
   useEffect(() => {
     const syncEnergyOnMount = async () => {
       let newEnergy = initialEnergy;
       let newLastEnergyUpdate = initialLastEnergyUpdate;
 
-      // Try cookies first
       const cookieData = loadEnergyFromCookies();
       if (cookieData) {
         newEnergy = cookieData.energy;
         newLastEnergyUpdate = cookieData.lastEnergyUpdate;
       }
 
-      // Then try Firestore
       if (telegramUserId !== "default") {
         try {
           const userDocRef = doc(db, "userData", telegramUserId);
@@ -177,7 +192,6 @@ function Game({
         }
       }
 
-      // Calculate energy recovery
       const currentTime = Date.now();
       const timeElapsed = (currentTime - newLastEnergyUpdate) / 1000;
       const energyToAdd = Math.floor(timeElapsed / 30);
@@ -194,14 +208,346 @@ function Game({
     syncEnergyOnMount();
   }, [initialEnergy, initialLastEnergyUpdate, telegramUserId, maxEnergy]);
 
-  // Sync energy on tab visibility change
+  const isOverlapping = (
+    x: number,
+    y: number,
+    existingChests: Array<{ x: number; y: number }>,
+    boat: Phaser.GameObjects.Image | null,
+    minDistance: number
+  ): boolean => {
+    if (!boat) return false;
+    const boatDistance = Phaser.Math.Distance.Between(x, y, boat.x, boat.y);
+    if (boatDistance < minDistance * 2) return true;
+
+    for (const chest of existingChests) {
+      const distance = Phaser.Math.Distance.Between(x, y, chest.x, chest.y);
+      if (distance < minDistance && (chest.x !== x || chest.y !== y))
+        return true;
+    }
+    return false;
+  };
+
+  const saveChestData = async (chest: ChestData) => {
+    saveQueueRef.current.push(chest);
+    console.log(
+      `Chest ${chest.id} queued for save. Queue length: ${saveQueueRef.current.length}`
+    );
+
+    if (isSavingRef.current) return;
+
+    isSavingRef.current = true;
+    while (saveQueueRef.current.length > 0) {
+      const nextChest = saveQueueRef.current[0];
+      try {
+        const chestDocRef = doc(
+          db,
+          "chests",
+          `${telegramUserId}_${nextChest.id}`
+        );
+        await setDoc(chestDocRef, nextChest);
+        console.log(`Chest ${nextChest.id} saved to Firestore`);
+      } catch (error) {
+        console.error(`Error saving chest ${nextChest.id}:`, error);
+      }
+      saveQueueRef.current.shift();
+    }
+    isSavingRef.current = false;
+  };
+
+  const loadChestData = async (attempts = 3): Promise<ChestData[]> => {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const chestsQuery = query(
+          collection(db, "chests"),
+          where("userId", "==", telegramUserId)
+        );
+        const querySnapshot = await getDocs(chestsQuery);
+        const savedChests: ChestData[] = [];
+        querySnapshot.forEach((doc) => {
+          savedChests.push(doc.data() as ChestData);
+        });
+
+        if (savedChests.length === 0) {
+          const newChests: ChestData[] = [
+            { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
+            { x: 0, y: 0, id: 1, lastSpawnTime: null, userId: telegramUserId },
+            { x: 0, y: 0, id: 2, lastSpawnTime: null, userId: telegramUserId },
+          ];
+          for (const chest of newChests) {
+            await saveChestData(chest);
+          }
+          return newChests;
+        }
+        return savedChests;
+      } catch (error) {
+        console.error(`Attempt ${i + 1} failed to load chest data:`, error);
+      }
+    }
+    console.warn("Failed to load chests, using defaults");
+    return [
+      { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
+      { x: 0, y: 0, id: 1, lastSpawnTime: null, userId: telegramUserId },
+      { x: 0, y: 0, id: 2, lastSpawnTime: null, userId: telegramUserId },
+    ];
+  };
+
+  const spawnChest = (
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    scaleFactor: number,
+    id: number
+  ) => {
+    console.log(
+      `Spawning chest ${id} at x: ${x}, y: ${y}, scale: ${scaleFactor}`
+    );
+    const chest = scene.add
+      .sprite(x, y, "chest")
+      .setInteractive({ useHandCursor: true, pixelPerfect: true })
+      .setScale(0)
+      .setDepth(3)
+      .setActive(true) as Phaser.GameObjects.Sprite;
+
+    console.log(
+      `Chest ${id} created, visible: ${chest.visible}, active: ${chest.active}`
+    );
+
+    const finalChestScale = 0.04 * scaleFactor;
+
+    const rings: Phaser.GameObjects.Sprite[] = [];
+    const ringKeys = ["ring1", "ring2", "ring3"];
+    ringKeys.forEach((key, index) => {
+      const ring = scene.add
+        .sprite(x, y, key)
+        .setDepth(0)
+        .setScale(0) as Phaser.GameObjects.Sprite;
+
+      const ringTexture = scene.textures
+        .get(key)
+        .getSourceImage() as HTMLImageElement;
+      const ringOriginalWidth = ringTexture.width;
+      const desiredRingWidth = baseWidth * (0.3 + index * 0.07);
+      const ringScale = desiredRingWidth / ringOriginalWidth;
+      const minRingScale = 0.2 + index * 0.07;
+      const maxRingScale = ringScale;
+
+      scene.tweens.add({
+        targets: ring,
+        scale: { from: minRingScale, to: maxRingScale },
+        duration: 3000,
+        delay: index * 500,
+        ease: "Sine.easeInOut",
+        repeat: -1,
+        yoyo: true,
+      });
+
+      scene.tweens.add({
+        targets: ring,
+        alpha: { from: 0.4, to: 1 },
+        duration: 3000,
+        delay: index * 500,
+        ease: "Sine.easeInOut",
+        repeat: -1,
+        yoyo: true,
+      });
+
+      rings.push(ring);
+    });
+
+    scene.tweens.add({
+      targets: chest,
+      scale: finalChestScale,
+      duration: 500,
+      ease: "Bounce.easeOut",
+      onComplete: () => {
+        console.log(`Chest ${id} scale after tween: ${chest.scale}`);
+      },
+    });
+
+    const chestEntry = { chest, rings, x, y, id };
+    const existingIndex = chestDataRef.current.findIndex(
+      (entry) => entry.id === id
+    );
+    if (existingIndex !== -1) {
+      chestDataRef.current[existingIndex] = chestEntry;
+    } else {
+      chestDataRef.current.push(chestEntry);
+    }
+
+    chest.on("pointerdown", () => {
+      console.log(`Chest ${id} clicked`);
+      const basePoints = Phaser.Math.Between(3, 10);
+      const points = basePoints + currentRank.clickBonus;
+      setClickQueue((prev) => [
+        ...prev,
+        { type: "chest", points, chestId: id },
+      ]);
+
+      const baseFontSize = 16;
+      const fontSize = baseFontSize * scaleFactor;
+      const plusText = scene.add
+        .text(chest.x, chest.y, `+${points.toFixed(2)}`, {
+          fontSize: `${fontSize}px`,
+          color: "#ffd700",
+        })
+        .setOrigin(0.5)
+        .setDepth(4)
+        .setActive(true);
+
+      const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
+      scene.tweens.add({
+        targets: plusText,
+        y: targetY,
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => plusText.destroy(),
+      });
+
+      chest.destroy();
+      rings.forEach((ring) => ring.destroy());
+
+      const index = chestDataRef.current.findIndex((entry) => entry.id === id);
+      if (index !== -1) {
+        chestDataRef.current[index].chest = null;
+        chestDataRef.current[index].rings = [];
+      }
+
+      const currentTime = Date.now();
+      const chestToSave: ChestData = {
+        x: 0,
+        y: 0,
+        id,
+        lastSpawnTime: currentTime,
+        userId: telegramUserId,
+      };
+      saveChestData(chestToSave);
+
+      const respawnTime = 30 * 1000;
+      scene.time.addEvent({
+        delay: respawnTime,
+        callback: () => {
+          console.log(`Scheduled respawn for chest ${id}`);
+          let newX, newY;
+          let attempts = 0;
+          const maxAttempts = 10;
+
+          do {
+            newX = Phaser.Math.Between(50, baseWidth - 50);
+            newY = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
+            attempts++;
+          } while (
+            isOverlapping(
+              newX,
+              newY,
+              chestDataRef.current.map((entry) => ({ x: entry.x, y: entry.y })),
+              boatRef.current,
+              30 * scaleFactor
+            ) &&
+            attempts < maxAttempts
+          );
+
+          if (attempts >= maxAttempts) {
+            console.warn(
+              `Could not find a valid position for chest ${id} after max attempts.`
+            );
+            return;
+          }
+
+          newX = Phaser.Math.Clamp(newX, 50, baseWidth - 50);
+          newY = Phaser.Math.Clamp(newY, baseHeight / 2 + 50, baseHeight - 50);
+
+          const updatedChest = {
+            x: newX,
+            y: newY,
+            id,
+            lastSpawnTime: null,
+            userId: telegramUserId,
+          };
+          saveChestData(updatedChest);
+
+          spawnChest(scene, newX, newY, scaleFactor, id);
+        },
+        callbackScope: scene,
+      });
+    });
+  };
+
+  const initializeChest = (
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    scaleFactor: number,
+    id: number,
+    lastSpawnTime: number | null
+  ) => {
+    console.log(
+      `Initializing chest ${id} at x: ${x}, y: ${y}, lastSpawnTime: ${lastSpawnTime}`
+    );
+    const currentTime = Date.now();
+    const respawnInterval = 30 * 1000;
+
+    if (!lastSpawnTime || currentTime - lastSpawnTime >= respawnInterval) {
+      spawnChest(scene, x, y, scaleFactor, id);
+    } else {
+      const timeLeft = respawnInterval - (currentTime - lastSpawnTime);
+      console.log(`Chest ${id} will respawn in ${timeLeft / 1000} seconds`);
+      scene.time.addEvent({
+        delay: timeLeft,
+        callback: () => {
+          console.log(`Respawning chest ${id} after delay`);
+          let newX, newY;
+          let attempts = 0;
+          const maxAttempts = 10;
+
+          do {
+            newX = Phaser.Math.Between(50, baseWidth - 50);
+            newY = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
+            attempts++;
+          } while (
+            isOverlapping(
+              newX,
+              newY,
+              chestDataRef.current.map((entry) => ({ x: entry.x, y: entry.y })),
+              boatRef.current,
+              30 * scaleFactor
+            ) &&
+            attempts < maxAttempts
+          );
+
+          if (attempts >= maxAttempts) {
+            console.warn(
+              `Could not find a valid position for chest ${id} after max attempts.`
+            );
+            return;
+          }
+
+          newX = Phaser.Math.Clamp(newX, 50, baseWidth - 50);
+          newY = Phaser.Math.Clamp(newY, baseHeight / 2 + 50, baseHeight - 50);
+
+          const updatedChest = {
+            x: newX,
+            y: newY,
+            id,
+            lastSpawnTime: null,
+            userId: telegramUserId,
+          };
+          saveChestData(updatedChest);
+
+          spawnChest(scene, newX, newY, scaleFactor, id);
+        },
+        callbackScope: scene,
+      });
+    }
+  };
+
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (
         document.visibilityState === "visible" &&
-        telegramUserId !== "default"
+        telegramUserId !== "default" &&
+        currentSceneRef.current
       ) {
-        console.log("Tab visible, syncing energy from Firestore");
+        console.log("Tab visible, syncing energy and chests from Firestore");
         try {
           const userDocRef = doc(db, "userData", telegramUserId);
           const userDoc = await getDoc(userDocRef);
@@ -238,8 +584,61 @@ function Game({
             newEnergy,
             currentTime,
           });
+
+          const savedChests = await loadChestData();
+          savedChests.forEach((chest: ChestData) => {
+            const existing = chestDataRef.current.find(
+              (entry) => entry.id === chest.id
+            );
+            if (!existing || !existing.chest?.active) {
+              let newX, newY;
+              let attempts = 0;
+              const maxAttempts = 10;
+
+              do {
+                newX = Phaser.Math.Between(50, baseWidth - 50);
+                newY = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
+                attempts++;
+              } while (
+                isOverlapping(
+                  newX,
+                  newY,
+                  savedChests,
+                  boatRef.current,
+                  30 * scaleFactor
+                ) &&
+                attempts < maxAttempts
+              );
+
+              if (attempts >= maxAttempts) {
+                console.warn(
+                  `Could not find a valid position for chest ${chest.id} after max attempts.`
+                );
+                return;
+              }
+
+              newX = Phaser.Math.Clamp(newX, 50, baseWidth - 50);
+              newY = Phaser.Math.Clamp(
+                newY,
+                baseHeight / 2 + 50,
+                baseHeight - 50
+              );
+
+              const updatedChest = { ...chest, x: newX, y: newY };
+              saveChestData(updatedChest);
+
+              initializeChest(
+                currentSceneRef.current!,
+                newX,
+                newY,
+                scaleFactor,
+                chest.id,
+                chest.lastSpawnTime
+              );
+            }
+          });
         } catch (error) {
-          console.error("Error syncing energy on visibility change:", error);
+          console.error("Error syncing on visibility change:", error);
           const cookieData = loadEnergyFromCookies();
           if (cookieData) {
             const currentTime = Date.now();
@@ -264,9 +663,8 @@ function Game({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [telegramUserId, maxEnergy]);
+  }, [telegramUserId, maxEnergy, scaleFactor, baseWidth, baseHeight]);
 
-  // Energy recovery
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
 
@@ -304,35 +702,6 @@ function Game({
     };
   }, [maxEnergy]);
 
-  // Save chest data
-  const saveChestData = async (chest: ChestData) => {
-    saveQueueRef.current.push(chest);
-    console.log(
-      `Chest ${chest.id} queued for save. Queue length: ${saveQueueRef.current.length}`
-    );
-
-    if (isSavingRef.current) return;
-
-    isSavingRef.current = true;
-    while (saveQueueRef.current.length > 0) {
-      const nextChest = saveQueueRef.current[0];
-      try {
-        const chestDocRef = doc(
-          db,
-          "chests",
-          `${telegramUserId}_${nextChest.id}`
-        );
-        await setDoc(chestDocRef, nextChest);
-        console.log(`Chest ${nextChest.id} saved to Firestore`);
-      } catch (error) {
-        console.error(`Error saving chest ${nextChest.id}:`, error);
-      }
-      saveQueueRef.current.shift();
-    }
-    isSavingRef.current = false;
-  };
-
-  // Process click queue
   useEffect(() => {
     if (clickQueue.length === 0) return;
 
@@ -357,25 +726,14 @@ function Game({
     setClickQueue([]);
   }, [clickQueue, setBalance]);
 
-  // Phaser game setup
   useEffect(() => {
-    const baseWidth = window.innerWidth;
-    const baseHeight = window.innerHeight - 100;
-    const aspectRatio = baseHeight / baseWidth;
+    let gameWidth = window.innerWidth;
+    let gameHeight = (window.innerHeight - 100) * (baseHeight / baseWidth);
 
-    const containerWidth = window.innerWidth;
-    const containerHeight = window.innerHeight - 100;
-
-    let gameWidth = containerWidth;
-    let gameHeight = containerWidth * aspectRatio;
-
-    if (gameHeight > containerHeight) {
-      gameHeight = containerHeight;
-      gameWidth = containerHeight / aspectRatio;
+    if (gameHeight > window.innerHeight - 100) {
+      gameHeight = window.innerHeight - 100;
+      gameWidth = gameHeight * (baseWidth / baseHeight);
     }
-
-    const referenceWidth = 360;
-    const scaleFactor = gameWidth / referenceWidth;
 
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
@@ -399,49 +757,7 @@ function Game({
       },
     };
 
-    let currentScene: Phaser.Scene | null = null;
-    let chestData: Array<{
-      chest: Phaser.GameObjects.Sprite | null;
-      rings: Phaser.GameObjects.Sprite[];
-      x: number;
-      y: number;
-      id: number;
-    }> = [];
     let lastVisibleCount: number | null = null;
-
-    async function loadChestData(): Promise<ChestData[]> {
-      try {
-        const chestsQuery = query(
-          collection(db, "chests"),
-          where("userId", "==", telegramUserId)
-        );
-        const querySnapshot = await getDocs(chestsQuery);
-        const savedChests: ChestData[] = [];
-        querySnapshot.forEach((doc) => {
-          savedChests.push(doc.data() as ChestData);
-        });
-
-        if (savedChests.length === 0) {
-          const newChests: ChestData[] = [
-            { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
-            { x: 0, y: 0, id: 1, lastSpawnTime: null, userId: telegramUserId },
-            { x: 0, y: 0, id: 2, lastSpawnTime: null, userId: telegramUserId },
-          ];
-          for (const chest of newChests) {
-            await saveChestData(chest);
-          }
-          return newChests;
-        }
-        return savedChests;
-      } catch (error) {
-        console.error("Error loading chest data:", error);
-        return [
-          { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
-          { x: 0, y: 0, id: 1, lastSpawnTime: null, userId: telegramUserId },
-          { x: 0, y: 0, id: 2, lastSpawnTime: null, userId: telegramUserId },
-        ];
-      }
-    }
 
     function preload(this: Phaser.Scene) {
       this.load.image("chest", chest);
@@ -452,10 +768,10 @@ function Game({
     }
 
     function create(this: Phaser.Scene) {
-      currentScene = this;
+      currentSceneRef.current = this;
       this.input.setPollAlways();
 
-      const boat = this.add
+      boatRef.current = this.add
         .image(baseWidth / 2, baseHeight / 2, "boat")
         .setInteractive({ useHandCursor: true, pixelPerfect: true })
         .setDepth(2) as Phaser.GameObjects.Image;
@@ -466,10 +782,10 @@ function Game({
       const boatOriginalWidth = boatTexture.width;
       const desiredBoatWidth = baseWidth * 0.25;
       const boatScale = desiredBoatWidth / boatOriginalWidth;
-      boat.setScale(boatScale);
+      boatRef.current.setScale(boatScale);
 
       this.tweens.add({
-        targets: boat,
+        targets: boatRef.current,
         y: baseHeight / 2 + 10 * scaleFactor,
         duration: 3000,
         yoyo: true,
@@ -477,21 +793,26 @@ function Game({
         ease: "Sine.easeInOut",
       });
 
-      boat.on("pointerdown", () => {
+      boatRef.current.on("pointerdown", () => {
         console.log("Boat clicked, current energy:", energyRef.current);
 
         if (energyRef.current <= 0) {
           console.log("Insufficient energy for click");
-          const warningText = currentScene!.add
-            .text(boat.x, boat.y, "Not enough energy!", {
-              fontSize: `${16 * scaleFactor}px`,
-              color: "#ff0000",
-            })
+          const warningText = currentSceneRef
+            .current!.add.text(
+              boatRef.current!.x,
+              boatRef.current!.y,
+              "Not enough energy!",
+              {
+                fontSize: `${16 * scaleFactor}px`,
+                color: "#ff0000",
+              }
+            )
             .setOrigin(0.5)
             .setDepth(4);
-          currentScene!.tweens.add({
+          currentSceneRef.current!.tweens.add({
             targets: warningText,
-            y: boat.y - 30 * scaleFactor,
+            y: boatRef.current!.y - 30 * scaleFactor,
             alpha: 0,
             duration: 1000,
             onComplete: () => warningText.destroy(),
@@ -520,17 +841,22 @@ function Game({
 
         const baseFontSize = 16;
         const fontSize = baseFontSize * scaleFactor;
-        const plusText = currentScene!.add
-          .text(boat.x, boat.y, `+${points.toFixed(2)}`, {
-            fontSize: `${fontSize}px`,
-            color: "#ffd700",
-          })
+        const plusText = currentSceneRef
+          .current!.add.text(
+            boatRef.current!.x,
+            boatRef.current!.y,
+            `+${points.toFixed(2)}`,
+            {
+              fontSize: `${fontSize}px`,
+              color: "#ffd700",
+            }
+          )
           .setOrigin(0.5)
           .setDepth(4)
           .setActive(true);
 
-        const targetY = Math.max(boat.y - 30 * scaleFactor, 0);
-        currentScene!.tweens.add({
+        const targetY = Math.max(boatRef.current!.y - 30 * scaleFactor, 0);
+        currentSceneRef.current!.tweens.add({
           targets: plusText,
           y: targetY,
           alpha: 0,
@@ -540,56 +866,39 @@ function Game({
       });
 
       loadChestData().then((savedChests) => {
-        savedChests.forEach((chest, index) => {
+        savedChests.forEach((chest: ChestData, index) => {
           let x, y;
-          if (chest.x === 0 && chest.y === 0) {
-            let attempts = 0;
-            const maxAttempts = 10;
+          let attempts = 0;
+          const maxAttempts = 10;
 
-            do {
-              x = Phaser.Math.Between(50, baseWidth - 50);
-              y = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
-              attempts++;
-            } while (
-              isOverlapping(x, y, savedChests, boat, 50 * scaleFactor) &&
-              attempts < maxAttempts
+          do {
+            x = Phaser.Math.Between(50, baseWidth - 50);
+            y = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
+            attempts++;
+          } while (
+            isOverlapping(
+              x,
+              y,
+              savedChests,
+              boatRef.current,
+              30 * scaleFactor
+            ) &&
+            attempts < maxAttempts
+          );
+
+          if (attempts >= maxAttempts) {
+            console.warn(
+              `Could not find a valid position for chest ${index} after max attempts.`
             );
-
-            if (attempts >= maxAttempts) {
-              console.warn(
-                `Could not find a valid position for chest ${index} after max attempts.`
-              );
-              return;
-            }
-
-            savedChests[index].x = x;
-            savedChests[index].y = y;
-            saveChestData(savedChests[index]);
-          } else {
-            x = chest.x;
-            y = chest.y;
-            if (y < baseHeight / 2) {
-              let attempts = 0;
-              const maxAttempts = 10;
-              do {
-                x = Phaser.Math.Between(50, baseWidth - 50);
-                y = Phaser.Math.Between(baseHeight / 2, baseHeight - 100);
-                attempts++;
-              } while (
-                isOverlapping(x, y, savedChests, boat, 50 * scaleFactor) &&
-                attempts < maxAttempts
-              );
-              if (attempts < maxAttempts) {
-                savedChests[index].x = x;
-                savedChests[index].y = y;
-                saveChestData(savedChests[index]);
-              } else {
-                console.warn(
-                  `Could not reposition chest ${index} after max attempts.`
-                );
-              }
-            }
+            return;
           }
+
+          x = Phaser.Math.Clamp(x, 50, baseWidth - 50);
+          y = Phaser.Math.Clamp(y, baseHeight / 2 + 50, baseHeight - 50);
+
+          savedChests[index].x = x;
+          savedChests[index].y = y;
+          saveChestData(savedChests[index]);
 
           console.log(`Chest ${index} spawned at x: ${x}, y: ${y}`);
           initializeChest(this, x, y, scaleFactor, index, chest.lastSpawnTime);
@@ -597,181 +906,12 @@ function Game({
       });
     }
 
-    function isOverlapping(
-      x: number,
-      y: number,
-      existingChests: Array<{ x: number; y: number }>,
-      boat: Phaser.GameObjects.Image,
-      minDistance: number
-    ): boolean {
-      const boatDistance = Phaser.Math.Distance.Between(x, y, boat.x, boat.y);
-      if (boatDistance < minDistance * 2) return true;
-
-      for (const chest of existingChests) {
-        const distance = Phaser.Math.Distance.Between(x, y, chest.x, chest.y);
-        if (distance < minDistance && (chest.x !== x || chest.y !== y))
-          return true;
-      }
-      return false;
-    }
-
-    function initializeChest(
-      scene: Phaser.Scene,
-      x: number,
-      y: number,
-      scaleFactor: number,
-      id: number,
-      lastSpawnTime: number | null
-    ) {
-      const currentTime = Date.now();
-      const respawnInterval = 30 * 1000;
-
-      if (!lastSpawnTime || currentTime - lastSpawnTime >= respawnInterval) {
-        spawnChest(scene, x, y, scaleFactor, id);
-      } else {
-        const timeLeft = respawnInterval - (currentTime - lastSpawnTime);
-        console.log(`Chest ${id} will respawn in ${timeLeft / 1000} seconds`);
-
-        setTimeout(() => {
-          if (currentScene) {
-            spawnChest(currentScene, x, y, scaleFactor, id);
-          }
-        }, timeLeft);
-      }
-    }
-
-    function spawnChest(
-      scene: Phaser.Scene,
-      x: number,
-      y: number,
-      scaleFactor: number,
-      id: number
-    ) {
-      const chest = scene.add
-        .sprite(x, y, "chest")
-        .setInteractive({ useHandCursor: true, pixelPerfect: true })
-        .setScale(0)
-        .setDepth(3)
-        .setActive(true) as Phaser.GameObjects.Sprite;
-
-      const finalChestScale = 0.04 * scaleFactor;
-
-      const rings: Phaser.GameObjects.Sprite[] = [];
-      const ringKeys = ["ring1", "ring2", "ring3"];
-      ringKeys.forEach((key, index) => {
-        const ring = scene.add
-          .sprite(x, y, key)
-          .setDepth(0)
-          .setScale(0) as Phaser.GameObjects.Sprite;
-
-        const ringTexture = scene.textures
-          .get(key)
-          .getSourceImage() as HTMLImageElement;
-        const ringOriginalWidth = ringTexture.width;
-        const desiredRingWidth = baseWidth * (0.3 + index * 0.07);
-        const ringScale = desiredRingWidth / ringOriginalWidth;
-        const minRingScale = 0.2 + index * 0.07;
-        const maxRingScale = ringScale;
-
-        scene.tweens.add({
-          targets: ring,
-          scale: { from: minRingScale, to: maxRingScale },
-          duration: 3000,
-          delay: index * 500,
-          ease: "Sine.easeInOut",
-          repeat: -1,
-          yoyo: true,
-        });
-
-        scene.tweens.add({
-          targets: ring,
-          alpha: { from: 0.4, to: 1 },
-          duration: 3000,
-          delay: index * 500,
-          ease: "Sine.easeInOut",
-          repeat: -1,
-          yoyo: true,
-        });
-
-        rings.push(ring);
-      });
-
-      scene.tweens.add({
-        targets: chest,
-        scale: finalChestScale,
-        duration: 500,
-        ease: "Bounce.easeOut",
-        onComplete: () => {
-          console.log(`Chest ${id} scale after tween: ${chest.scale}`);
-        },
-      });
-
-      const chestEntry = { chest, rings, x, y, id };
-      chestData.push(chestEntry);
-
-      chest.on("pointerdown", () => {
-        console.log(`Chest ${id} clicked`);
-        const basePoints = Phaser.Math.Between(3, 10);
-        const points = basePoints + currentRank.clickBonus;
-        setClickQueue((prev) => [
-          ...prev,
-          { type: "chest", points, chestId: id },
-        ]);
-
-        const baseFontSize = 16;
-        const fontSize = baseFontSize * scaleFactor;
-        const plusText = scene.add
-          .text(chest.x, chest.y, `+${points.toFixed(2)}`, {
-            fontSize: `${fontSize}px`,
-            color: "#ffd700",
-          })
-          .setOrigin(0.5)
-          .setDepth(4)
-          .setActive(true);
-
-        const targetY = Math.max(chest.y - 30 * scaleFactor, 0);
-        scene.tweens.add({
-          targets: plusText,
-          y: targetY,
-          alpha: 0,
-          duration: 1000,
-          onComplete: () => plusText.destroy(),
-        });
-
-        chest.destroy();
-        rings.forEach((ring) => ring.destroy());
-
-        const index = chestData.indexOf(chestEntry);
-        if (index !== -1) {
-          chestData[index].chest = null;
-          chestData[index].rings = [];
-        }
-
-        const currentTime = Date.now();
-        const chestToSave: ChestData = {
-          x,
-          y,
-          id,
-          lastSpawnTime: currentTime,
-          userId: telegramUserId,
-        };
-        saveChestData(chestToSave);
-
-        const respawnTime = 30 * 1000;
-        setTimeout(() => {
-          if (currentScene) {
-            spawnChest(currentScene, x, y, scaleFactor, id);
-          }
-        }, respawnTime);
-      });
-    }
-
     function update(this: Phaser.Scene) {
-      const visibleCount = chestData.filter(
+      const visibleCount = chestDataRef.current.filter(
         (entry) => entry.chest?.visible && entry.chest?.active
       ).length;
       if (lastVisibleCount !== visibleCount) {
-        console.log(`Visible chests in update: ${visibleCount}`);
+        console.log(`Visible chests: ${visibleCount}`);
         lastVisibleCount = visibleCount;
       }
     }
@@ -780,6 +920,50 @@ function Game({
       gameInstance.current = new Phaser.Game(config);
     }
 
+    const handleResize = () => {
+      const newBaseWidth = window.innerWidth;
+      const newBaseHeight = window.innerHeight - 100;
+      let newGameWidth = newBaseWidth;
+      let newGameHeight = newBaseHeight;
+
+      const aspectRatio = newBaseHeight / newBaseWidth;
+      if (newGameHeight > window.innerHeight - 100) {
+        newGameHeight = window.innerHeight - 100;
+        newGameWidth = newGameHeight / aspectRatio;
+      }
+
+      const referenceWidth = 360;
+      const newScaleFactor = newGameWidth / referenceWidth;
+
+      setBaseWidth(newBaseWidth);
+      setBaseHeight(newBaseHeight);
+      setScaleFactor(newScaleFactor);
+
+      if (gameInstance.current && boatRef.current) {
+        gameInstance.current.scale.resize(newBaseWidth, newBaseHeight);
+        boatRef.current.setPosition(newBaseWidth / 2, newBaseHeight / 2);
+        chestDataRef.current.forEach((entry) => {
+          if (entry.chest?.active) {
+            let newX = Phaser.Math.Clamp(entry.x, 50, newBaseWidth - 50);
+            let newY = Phaser.Math.Clamp(entry.y, 50, newBaseHeight - 100);
+            entry.chest.setPosition(newX, newY);
+            entry.rings.forEach((ring) => ring.setPosition(newX, newY));
+            entry.x = newX;
+            entry.y = newY;
+            saveChestData({
+              x: newX,
+              y: newY,
+              id: entry.id,
+              lastSpawnTime: entry.chest ? null : Date.now(),
+              userId: telegramUserId,
+            });
+          }
+        });
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+
     return () => {
       const currentTime = Date.now();
       saveEnergyToCookies(energyRef.current, currentTime);
@@ -787,20 +971,24 @@ function Game({
         console.log("Energy saved to Firestore before unmount");
       });
 
+      window.removeEventListener("resize", handleResize);
+
       if (gameInstance.current) {
         gameInstance.current.destroy(true);
         gameInstance.current = null;
-        chestData.forEach((entry) => {
+        chestDataRef.current.forEach((entry) => {
           entry.chest?.destroy();
           entry.rings.forEach((ring) => ring.destroy());
         });
-        currentScene = null;
+        currentSceneRef.current = null;
+        boatRef.current = null;
       }
     };
   }, [currentRank, initialEnergy, initialLastEnergyUpdate, telegramUserId]);
 
   return (
     <>
+      <Header balance={balance} user={user} ranks={ranks} />
       <div ref={gameRef} className="game-container" />
       <EnergyBar currentEnergy={displayEnergy} maxEnergy={maxEnergy} />
     </>
