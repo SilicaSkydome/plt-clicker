@@ -25,7 +25,7 @@ declare global {
   }
 }
 
-// Определяем ранги на основе таблицы*
+// Определяем ранги
 const RANKS: Rank[] = [
   {
     title: "Cabin Boy",
@@ -184,6 +184,7 @@ interface AppContentProps {
   initialLastEnergyUpdate: number;
   saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
   maxEnergy: number;
+  isSessionBlocked: boolean; // Добавляем новое свойство
 }
 
 const AppContent = ({
@@ -198,6 +199,7 @@ const AppContent = ({
   initialLastEnergyUpdate,
   saveEnergy,
   maxEnergy,
+  isSessionBlocked,
 }: AppContentProps) => {
   const location = useLocation();
   const [isNight, setIsNight] = useState(isNightTime());
@@ -220,6 +222,18 @@ const AppContent = ({
 
   if (isLoading) {
     return <div>Loading...</div>;
+  }
+
+  if (isSessionBlocked) {
+    return (
+      <div className="app session-blocked">
+        <h1>Session Blocked</h1>
+        <p>
+          Game already opened in another window! Use /reset_session in the bot
+          to reset.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -276,6 +290,7 @@ function App() {
     lastEnergyUpdate: Date.now(),
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isSessionBlocked, setIsSessionBlocked] = useState(false); // Добавляем состояние для блокировки сессии
   const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
@@ -283,6 +298,7 @@ function App() {
   const [initialLastEnergyUpdate, setInitialLastEnergyUpdate] =
     useState<number>(Date.now());
   const maxEnergy = 50;
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const prevDataRef = useRef({
     balance: 0,
@@ -339,10 +355,36 @@ function App() {
     }
 
     const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 минут
+    const HEARTBEAT_INTERVAL = 10 * 1000; // 10 секунд
     const userDocRef = doc(db, "userData", userId);
     const currentTime = Date.now();
 
     try {
+      // Проверяем локальное состояние через localStorage
+      const localSession = localStorage.getItem(`session_${userId}`);
+      if (localSession) {
+        console.log("Сессия уже активна в localStorage:", localSession);
+        const userDoc = await getDoc(userDocRef);
+        let activeSession = null;
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          activeSession = userData.activeSession;
+          console.log("Получены данные сессии из Firestore:", activeSession);
+        }
+
+        if (
+          activeSession &&
+          activeSession.sessionId !== localSession &&
+          currentTime - activeSession.timestamp < SESSION_TIMEOUT
+        ) {
+          console.log("Сессия активна в другой вкладке, блокируем запуск");
+          setIsSessionBlocked(true);
+          return false;
+        }
+      }
+
+      // Проверяем сессию в Firestore
       const userDoc = await getDoc(userDocRef);
       let activeSession = null;
 
@@ -355,7 +397,6 @@ function App() {
         await setDoc(userDocRef, { activeSession: null }, { merge: true });
       }
 
-      // Проверяем валидность сессии с учётом всех вкладок
       if (
         activeSession &&
         typeof activeSession === "object" &&
@@ -369,15 +410,9 @@ function App() {
         });
 
         if (sessionAge < SESSION_TIMEOUT) {
-          // Проверяем, активна ли сессия на других вкладках через localStorage
-          const localSession = localStorage.getItem(`session_${userId}`);
-          if (localSession && localSession !== activeSession.sessionId) {
-            console.log("Сессия активна в другой вкладке, блокируем запуск");
-            window.alert(
-              "Game already opened in another window! Use /reset_session in the bot to reset."
-            );
-            return false;
-          }
+          console.log("Сессия активна в другой вкладке, блокируем запуск");
+          setIsSessionBlocked(true);
+          return false;
         } else {
           console.log("Сессия истекла, очищаем");
           await setDoc(userDocRef, { activeSession: null }, { merge: true });
@@ -392,7 +427,7 @@ function App() {
       console.log("Новая сессия создана:", newSession);
 
       // Запускаем heartbeat
-      const heartbeatInterval = setInterval(async () => {
+      heartbeatIntervalRef.current = setInterval(async () => {
         try {
           const currentDoc = await getDoc(userDocRef);
           const currentSession = currentDoc.data()?.activeSession;
@@ -409,14 +444,35 @@ function App() {
               timestamp: Date.now(),
             });
           } else {
-            clearInterval(heartbeatInterval);
+            clearInterval(heartbeatIntervalRef.current!);
             console.log("Heartbeat: сессия устарела, останавливаем");
+            setIsSessionBlocked(true);
           }
         } catch (error) {
           console.error("Ошибка в heartbeat:", error);
-          clearInterval(heartbeatInterval);
+          clearInterval(heartbeatIntervalRef.current!);
+          setIsSessionBlocked(true);
         }
-      }, 30 * 1000);
+      }, HEARTBEAT_INTERVAL);
+
+      // Реагируем на изменения в localStorage (другие вкладки)
+      const handleStorageChange = (event: StorageEvent) => {
+        if (event.key === `session_${userId}`) {
+          const newSessionIdFromStorage = event.newValue;
+          if (
+            newSessionIdFromStorage &&
+            newSessionIdFromStorage !== newSessionId
+          ) {
+            console.log(
+              "Обнаружено изменение сессии в другой вкладке:",
+              newSessionIdFromStorage
+            );
+            setIsSessionBlocked(true);
+            clearInterval(heartbeatIntervalRef.current!);
+          }
+        }
+      };
+      window.addEventListener("storage", handleStorageChange);
 
       // Очистка при закрытии окна
       const handleBeforeUnload = async () => {
@@ -424,20 +480,24 @@ function App() {
           localStorage.removeItem(`session_${userId}`);
           await setDoc(userDocRef, { activeSession: null }, { merge: true });
           console.log("Сессия очищена при закрытии окна");
-          clearInterval(heartbeatInterval);
+          clearInterval(heartbeatIntervalRef.current!);
         } catch (error) {
           console.error("Ошибка при очистке сессии:", error);
         }
       };
       window.addEventListener("beforeunload", handleBeforeUnload);
 
-      return true;
+      return () => {
+        window.removeEventListener("storage", handleStorageChange);
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+        }
+      };
     } catch (error) {
       console.error("Ошибка при управлении сессией:", error);
-      window.alert(
-        "Error managing session. Please try again or use /reset_session in the bot."
-      );
-      return true; // Разрешаем запуск при ошибке
+      setIsSessionBlocked(true);
+      return false;
     }
   };
 
@@ -519,9 +579,12 @@ function App() {
 
         // Проверяем сессию
         if (!isTestUser && userData.id) {
-          const isSessionValid = await manageSession(userData.id);
-          if (!isSessionValid) {
-            return; // Прерываем инициализацию, если сессия невалидна
+          const cleanup = await manageSession(userData.id);
+          if (typeof cleanup === "function") {
+            cleanup();
+          }
+          if (isSessionBlocked) {
+            return;
           }
         }
 
@@ -839,6 +902,7 @@ function App() {
         initialLastEnergyUpdate={initialLastEnergyUpdate}
         saveEnergy={saveEnergy}
         maxEnergy={maxEnergy}
+        isSessionBlocked={isSessionBlocked}
       />
     </Router>
   );
