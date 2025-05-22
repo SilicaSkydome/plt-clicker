@@ -184,7 +184,7 @@ interface AppContentProps {
   initialLastEnergyUpdate: number;
   saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
   maxEnergy: number;
-  isSessionBlocked: boolean; // Добавляем новое свойство
+  isSessionBlocked: boolean;
 }
 
 const AppContent = ({
@@ -207,7 +207,7 @@ const AppContent = ({
   useEffect(() => {
     const interval = setInterval(() => {
       setIsNight(isNightTime());
-    }, 60000); // Проверяем каждую минуту
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -290,7 +290,7 @@ function App() {
     lastEnergyUpdate: Date.now(),
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSessionBlocked, setIsSessionBlocked] = useState(false); // Добавляем состояние для блокировки сессии
+  const [isSessionBlocked, setIsSessionBlocked] = useState(false);
   const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
@@ -327,7 +327,6 @@ function App() {
     });
   };
 
-  // Функция для сохранения энергии и времени обновления
   const saveEnergy = async (newEnergy: number, updateTime: number) => {
     if (!user.id || user.id === "test_user_123") {
       console.log("Тестовый пользователь, сохранение энергии отключено");
@@ -347,20 +346,18 @@ function App() {
     }
   };
 
-  // Функция для проверки и управления сессией через Firestore
   const manageSession = async (userId: string) => {
     if (!userId || userId === "test_user_123") {
       console.log("Тестовый пользователь, управление сессией отключено");
       return true;
     }
 
-    const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 минут
-    const HEARTBEAT_INTERVAL = 10 * 1000; // 10 секунд
+    const SESSION_TIMEOUT = 5 * 60 * 1000;
+    const HEARTBEAT_INTERVAL = 10 * 1000;
     const userDocRef = doc(db, "userData", userId);
     const currentTime = Date.now();
 
     try {
-      // Проверяем локальное состояние через localStorage
       const localSession = localStorage.getItem(`session_${userId}`);
       if (localSession) {
         console.log("Сессия уже активна в localStorage:", localSession);
@@ -370,7 +367,6 @@ function App() {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           activeSession = userData.activeSession;
-          console.log("Получены данные сессии из Firestore:", activeSession);
         }
 
         if (
@@ -384,16 +380,13 @@ function App() {
         }
       }
 
-      // Проверяем сессию в Firestore
       const userDoc = await getDoc(userDocRef);
       let activeSession = null;
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
         activeSession = userData.activeSession;
-        console.log("Получены данные сессии из Firestore:", activeSession);
       } else {
-        console.log("Документ пользователя не существует, создаём новый");
         await setDoc(userDocRef, { activeSession: null }, { merge: true });
       }
 
@@ -403,30 +396,17 @@ function App() {
         activeSession.sessionId
       ) {
         const sessionAge = currentTime - activeSession.timestamp;
-        console.log("Сессия найдена:", {
-          sessionId: activeSession.sessionId,
-          timestamp: activeSession.timestamp,
-          sessionAge: sessionAge / 1000 / 60,
-        });
-
         if (sessionAge < SESSION_TIMEOUT) {
-          console.log("Сессия активна в другой вкладке, блокируем запуск");
-          setIsSessionBlocked(true);
-          return false;
-        } else {
           console.log("Сессия истекла, очищаем");
           await setDoc(userDocRef, { activeSession: null }, { merge: true });
         }
       }
 
-      // Создаём новую сессию
       const newSessionId = `${userId}_${currentTime}`;
       const newSession = { sessionId: newSessionId, timestamp: currentTime };
       await setDoc(userDocRef, { activeSession: newSession }, { merge: true });
       localStorage.setItem(`session_${userId}`, newSessionId);
-      console.log("Новая сессия создана:", newSession);
 
-      // Запускаем heartbeat
       heartbeatIntervalRef.current = setInterval(async () => {
         try {
           const currentDoc = await getDoc(userDocRef);
@@ -439,13 +419,8 @@ function App() {
             await updateDoc(userDocRef, {
               "activeSession.timestamp": Date.now(),
             });
-            console.log("Heartbeat: сессия обновлена", {
-              sessionId: newSessionId,
-              timestamp: Date.now(),
-            });
           } else {
             clearInterval(heartbeatIntervalRef.current!);
-            console.log("Heartbeat: сессия устарела, останавливаем");
             setIsSessionBlocked(true);
           }
         } catch (error) {
@@ -455,7 +430,6 @@ function App() {
         }
       }, HEARTBEAT_INTERVAL);
 
-      // Реагируем на изменения в localStorage (другие вкладки)
       const handleStorageChange = (event: StorageEvent) => {
         if (event.key === `session_${userId}`) {
           const newSessionIdFromStorage = event.newValue;
@@ -463,10 +437,7 @@ function App() {
             newSessionIdFromStorage &&
             newSessionIdFromStorage !== newSessionId
           ) {
-            console.log(
-              "Обнаружено изменение сессии в другой вкладке:",
-              newSessionIdFromStorage
-            );
+            console.log("Обнаружено изменение сессии в другой вкладке");
             setIsSessionBlocked(true);
             clearInterval(heartbeatIntervalRef.current!);
           }
@@ -474,13 +445,13 @@ function App() {
       };
       window.addEventListener("storage", handleStorageChange);
 
-      // Очистка при закрытии окна
       const handleBeforeUnload = async () => {
         try {
           localStorage.removeItem(`session_${userId}`);
           await setDoc(userDocRef, { activeSession: null }, { merge: true });
-          console.log("Сессия очищена при закрытии окна");
-          clearInterval(heartbeatIntervalRef.current!);
+          if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+          }
         } catch (error) {
           console.error("Ошибка при очистке сессии:", error);
         }
@@ -518,9 +489,6 @@ function App() {
         let isTestUser = false;
 
         if (isTestMode) {
-          console.warn(
-            "Тестовый режим включен, используется тестовый пользователь"
-          );
           userData = {
             id: "test_user_123",
             firstName: "Test",
@@ -539,9 +507,6 @@ function App() {
           const app = (window as any).Telegram?.WebApp;
 
           if (!app) {
-            console.warn(
-              "Telegram Web App недоступен, переключаемся на тестового пользователя"
-            );
             userData = testUser;
             isTestUser = true;
           } else {
@@ -551,9 +516,6 @@ function App() {
             const telegramUser = app.initDataUnsafe?.user;
 
             if (!telegramUser) {
-              console.warn(
-                "Данные пользователя Telegram недоступны, переключаемся на тестового пользователя"
-              );
               userData = testUser;
               isTestUser = true;
             } else {
@@ -574,10 +536,8 @@ function App() {
           }
         }
 
-        console.log("Инициализированный пользователь:", userData);
         setUser(userData);
 
-        // Проверяем сессию
         if (!isTestUser && userData.id) {
           const cleanup = await manageSession(userData.id);
           if (typeof cleanup === "function") {
@@ -624,12 +584,8 @@ function App() {
     if (app) {
       const handleStartParam = async () => {
         const startParam = app.initDataUnsafe?.start_param;
-        console.log("Получен start_param:", startParam);
         if (startParam?.startsWith("ref_")) {
           const referrerId = startParam.split("_")[1];
-          console.log(
-            `Обрабатываем реферала: newUserId=${user.id}, referrerId=${referrerId}`
-          );
           await handleReferral(user.id, referrerId);
 
           app.sendData(
@@ -666,23 +622,17 @@ function App() {
       const userDoc = await getDoc(userDocRef);
       if (userDoc.exists()) {
         const userDataFromDb = userDoc.data() as UserData;
-        console.log("Данные пользователя из Firestore:", userDataFromDb);
-
-        // Загружаем баланс
         setBalance(userDataFromDb.balance || 0);
 
-        // Загружаем энергию и рассчитываем восстановление
         const storedEnergy = userDataFromDb.energy ?? 50;
         const storedLastUpdate = userDataFromDb.lastEnergyUpdate ?? Date.now();
         const currentTime = Date.now();
-        const timeElapsed = (currentTime - storedLastUpdate) / 1000; // Время в секундах
-        const energyToAdd = Math.floor(timeElapsed / 30); // 1 энергия каждые 30 секунд
+        const timeElapsed = (currentTime - storedLastUpdate) / 1000;
+        const energyToAdd = Math.floor(timeElapsed / 30);
         const newEnergy = Math.min(storedEnergy + energyToAdd, maxEnergy);
 
         setInitialEnergy(newEnergy);
         setInitialLastEnergyUpdate(currentTime);
-
-        // Сохраняем обновлённую энергию и время
         await setDoc(
           userDocRef,
           { energy: newEnergy, lastEnergyUpdate: currentTime },
@@ -701,7 +651,6 @@ function App() {
         const mappedTasks = mapTasksFromFirestore(userDataFromDb.tasks || []);
         setTasks(mappedTasks);
       } else {
-        console.log("Создаем нового пользователя в Firestore");
         const newUser: UserData = {
           id: userData.id,
           firstName: userData.firstName,
@@ -734,7 +683,6 @@ function App() {
 
   const handleReferral = async (newUserId: string, referrerId: string) => {
     if (newUserId === referrerId) {
-      console.log("Пользователь не может быть своим рефералом");
       return;
     }
 
@@ -752,17 +700,10 @@ function App() {
             referals: arrayUnion(newReferral),
             balance: (referrerData.balance || 0) + 100,
           });
-          console.log(
-            `Реферал ${newUserId} успешно добавлен к пользователю ${referrerId}`
-          );
 
           if (user.id === referrerId) {
             setUser((prev) => {
-              const currentReferals = prev.referals || [];
-              if (currentReferals.some((ref) => ref.id === newUserId)) {
-                return prev;
-              }
-              const updatedReferals = [...currentReferals, newReferral];
+              const updatedReferals = [...(prev.referals || []), newReferral];
               localStorage.setItem(
                 `referrals_${user.id}`,
                 JSON.stringify(updatedReferals)
@@ -775,13 +716,8 @@ function App() {
             });
             setBalance((prev) => prev + 100);
           }
-        } else {
-          console.log(
-            `Реферал ${newUserId} уже существует у пользователя ${referrerId}`
-          );
         }
       } else {
-        console.log(`Пользователь с ID ${referrerId} не найден в Firestore`);
         const newReferrer: UserData = {
           id: referrerId,
           firstName: "Unknown",
@@ -796,19 +732,14 @@ function App() {
           lastEnergyUpdate: Date.now(),
         };
         await setDoc(referrerRef, newReferrer);
-        console.log(
-          `Создан новый пользователь с ID ${referrerId} с рефералом ${newUserId}`
-        );
       }
     } catch (error) {
       console.error("Ошибка при обработке реферала:", error);
     }
   };
 
-  // Эффект для синхронизации данных с Firestore
   useEffect(() => {
     if (!user.id || user.id === "test_user_123") {
-      console.log("Тестовый пользователь, синхронизация с Firestore отключена");
       return;
     }
 
@@ -831,27 +762,11 @@ function App() {
         JSON.stringify(currentData.currentRank) !==
         JSON.stringify(prevData.currentRank);
 
-      console.log("Проверка изменений данных:", {
-        balanceChanged,
-        tasksChanged,
-        rankChanged,
-        currentBalance: currentData.balance,
-        prevBalance: prevData.balance,
-        currentTasks: currentData.tasks.map((t) => t.title),
-        prevTasks: prevData.tasks.map((t) => t.title),
-        currentRank: currentData.currentRank.title,
-        prevRank: prevData.currentRank.title,
-      });
-
       return balanceChanged || tasksChanged || rankChanged;
     };
 
     const syncWithFirestore = async () => {
-      console.log("Синхронизация с Firestore...");
       if (balance < 0) {
-        console.warn(
-          "Баланс не может быть отрицательным, пропускаем синхронизацию"
-        );
         return;
       }
 
@@ -871,17 +786,12 @@ function App() {
       const userDocRef = doc(db, "userData", user.id);
       try {
         await setDoc(userDocRef, userData, { merge: true });
-        console.log(
-          "Данные пользователя успешно обновлены в Firestore",
-          userData
-        );
       } catch (error) {
         console.error("Ошибка при обновлении данных пользователя:", error);
       }
     };
 
     if (hasDataChanged()) {
-      console.log("Данные изменились, синхронизируем с Firestore");
       syncWithFirestore();
     }
 
