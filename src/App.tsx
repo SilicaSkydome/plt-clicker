@@ -371,36 +371,16 @@ function App() {
       }
     }
 
-    // Записываем начальную метку времени
+    // Если сессия не активна, начинаем обновлять метку
     localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
 
-    // Запускаем heartbeat для обновления метки времени
+    // Запускаем heartbeat для обновления метки времени каждые 5 секунд
     heartbeatIntervalRef.current = setInterval(() => {
       const currentTime = Date.now();
       localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
       console.log("Heartbeat: метка времени обновлена", {
         timestamp: currentTime,
       });
-
-      // Проверяем, не появилась ли другая активная сессия
-      const lastHeartbeatCheck = localStorage.getItem(`heartbeat_${userId}`);
-      if (lastHeartbeatCheck) {
-        const lastHeartbeatTime = parseInt(lastHeartbeatCheck, 10);
-        const timeSinceLastHeartbeat = currentTime - lastHeartbeatTime;
-
-        if (
-          timeSinceLastHeartbeat > SESSION_TIMEOUT &&
-          lastHeartbeatTime !== currentTime
-        ) {
-          console.log(
-            "Сессия истекла или перехвачена другой вкладкой, блокируем"
-          );
-          setIsSessionBlocked(true);
-          if (heartbeatIntervalRef.current) {
-            clearInterval(heartbeatIntervalRef.current);
-          }
-        }
-      }
     }, CHECK_INTERVAL);
 
     // Реагируем на изменения в localStorage (другие вкладки)
@@ -411,10 +391,7 @@ function App() {
           const newHeartbeatTime = parseInt(newHeartbeat, 10);
           const timeSinceHeartbeat = currentTime - newHeartbeatTime;
 
-          if (
-            timeSinceHeartbeat < SESSION_TIMEOUT &&
-            newHeartbeatTime !== currentTime
-          ) {
+          if (timeSinceHeartbeat < SESSION_TIMEOUT) {
             console.log("Обнаружено изменение метки времени в другой вкладке");
             setIsSessionBlocked(true);
             if (heartbeatIntervalRef.current) {
@@ -426,18 +403,8 @@ function App() {
     };
     window.addEventListener("storage", handleStorageChange);
 
-    // Очистка при закрытии окна
-    const handleBeforeUnload = () => {
-      localStorage.removeItem(`heartbeat_${userId}`);
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
