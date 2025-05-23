@@ -10,11 +10,12 @@ import Game from "./pages/Game/Game";
 import Stats from "./pages/Stats/Stats";
 import Invite from "./pages/Invite/Invite";
 import Earn from "./pages/Earn/Earn";
-import Header from "./components/Header/Header";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { Task, TaskData, UserData, Referal, Rank } from "./Interfaces";
+import useSession from "./api/UseSession"; // Путь к файлу useSession.ts
+import SessionBlocked from "./components/Common/SessionBlocked/SessionBlocked"; // Путь к файлу SessionBlocked.tsx
 
 // Определяем тип для window.env
 declare global {
@@ -275,6 +276,7 @@ function App() {
     energy: 50,
     lastEnergyUpdate: Date.now(),
   });
+  const { isSessionBlocked } = useSession(user.id); // Добавляем хук
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -645,21 +647,27 @@ function App() {
   }, [balance, tasks, currentRank]);
 
   return (
-    <Router>
-      <AppContent
-        user={user}
-        isLoading={isLoading}
-        balance={balance}
-        setBalance={setBalance}
-        tasks={tasks}
-        setTasks={setTasks}
-        currentRank={currentRank}
-        initialEnergy={initialEnergy}
-        initialLastEnergyUpdate={initialLastEnergyUpdate}
-        saveEnergy={saveEnergy}
-        maxEnergy={maxEnergy}
-      />
-    </Router>
+    <>
+      {isSessionBlocked ? (
+        <SessionBlocked />
+      ) : (
+        <Router>
+          <AppContent
+            user={user}
+            isLoading={isLoading}
+            balance={balance}
+            setBalance={setBalance}
+            tasks={tasks}
+            setTasks={setTasks}
+            currentRank={currentRank}
+            initialEnergy={initialEnergy}
+            initialLastEnergyUpdate={initialLastEnergyUpdate}
+            saveEnergy={saveEnergy}
+            maxEnergy={maxEnergy}
+          />
+        </Router>
+      )}
+    </>
   );
 }
 
