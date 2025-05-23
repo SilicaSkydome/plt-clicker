@@ -1,9 +1,10 @@
-import React, { StrictMode } from "react";
+import React, { StrictMode, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.js";
 
 const rootElement = document.getElementById("root");
+
 if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>

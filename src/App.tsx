@@ -184,7 +184,6 @@ interface AppContentProps {
   initialLastEnergyUpdate: number;
   saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
   maxEnergy: number;
-  isSessionBlocked: boolean;
 }
 
 const AppContent = ({
@@ -199,7 +198,6 @@ const AppContent = ({
   initialLastEnergyUpdate,
   saveEnergy,
   maxEnergy,
-  isSessionBlocked,
 }: AppContentProps) => {
   const location = useLocation();
   const [isNight, setIsNight] = useState(isNightTime());
@@ -222,18 +220,6 @@ const AppContent = ({
 
   if (isLoading) {
     return <div>Loading...</div>;
-  }
-
-  if (isSessionBlocked) {
-    return (
-      <div className="app session-blocked">
-        <h1>Session Blocked</h1>
-        <p>
-          Game already opened in another window! Please close other instances or
-          wait a few seconds.
-        </p>
-      </div>
-    );
   }
 
   return (
@@ -290,7 +276,6 @@ function App() {
     lastEnergyUpdate: Date.now(),
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSessionBlocked, setIsSessionBlocked] = useState(false);
   const [balance, setBalanceState] = useState<number>(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
@@ -298,8 +283,6 @@ function App() {
   const [initialLastEnergyUpdate, setInitialLastEnergyUpdate] =
     useState<number>(Date.now());
   const maxEnergy = 50;
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const sessionIdRef = useRef<string | null>(null); // Храним sessionId локально
 
   const prevDataRef = useRef({
     balance: 0,
@@ -347,107 +330,6 @@ function App() {
     }
   };
 
-  // Локальная проверка активности сессии
-  const manageSession = (userId: string) => {
-    if (!userId || userId === "test_user_123") {
-      console.log("Тестовый пользователь, управление сессией отключено");
-      return true;
-    }
-
-    const CHECK_INTERVAL = 5 * 1000; // 5 секунд
-    const SESSION_TIMEOUT = 5 * 1000; // 5 секунд
-
-    // Проверяем, можно ли запустить приложение
-    const lastHeartbeat = localStorage.getItem(`heartbeat_${userId}`);
-    const currentTime = Date.now();
-
-    if (lastHeartbeat) {
-      const lastHeartbeatTime = parseInt(lastHeartbeat, 10);
-      const timeSinceLastHeartbeat = currentTime - lastHeartbeatTime;
-
-      if (timeSinceLastHeartbeat < SESSION_TIMEOUT) {
-        console.log("Сессия активна в другой вкладке, блокируем запуск");
-        setIsSessionBlocked(true);
-        return false;
-      }
-    }
-
-    // Создаём уникальный sessionId для текущей вкладки
-    const newSessionId = `${userId}_${currentTime}`;
-    sessionIdRef.current = newSessionId;
-
-    // Если сессия не активна, начинаем обновлять метку
-    localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
-    console.log("Запуск новой сессии", {
-      sessionId: newSessionId,
-      timestamp: currentTime,
-    });
-
-    // Запускаем heartbeat для обновления метки времени каждые 5 секунд
-    heartbeatIntervalRef.current = setInterval(() => {
-      const currentTime = Date.now();
-      // Проверяем, не изменилась ли метка другим окном
-      const lastHeartbeatCheck = localStorage.getItem(`heartbeat_${userId}`);
-      if (lastHeartbeatCheck) {
-        const lastHeartbeatTime = parseInt(lastHeartbeatCheck, 10);
-        const timeSinceLastHeartbeat = currentTime - lastHeartbeatTime;
-
-        if (timeSinceLastHeartbeat < SESSION_TIMEOUT) {
-          // Если метка свежая, но не от этой вкладки, блокируем
-          const lastSessionId = localStorage.getItem(`session_${userId}`);
-          if (lastSessionId !== sessionIdRef.current) {
-            console.log("Сессия перехвачена другой вкладкой, блокируем");
-            setIsSessionBlocked(true);
-            if (heartbeatIntervalRef.current) {
-              clearInterval(heartbeatIntervalRef.current);
-            }
-            return;
-          }
-        }
-      }
-
-      // Обновляем метку времени и sessionId
-      localStorage.setItem(`heartbeat_${userId}`, currentTime.toString());
-      localStorage.setItem(`session_${userId}`, sessionIdRef.current!);
-      console.log("Heartbeat: метка времени обновлена", {
-        sessionId: sessionIdRef.current,
-        timestamp: currentTime,
-      });
-    }, CHECK_INTERVAL);
-
-    // Реагируем на изменения в localStorage (другие вкладки)
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === `heartbeat_${userId}`) {
-        const newHeartbeat = event.newValue;
-        if (newHeartbeat) {
-          const newHeartbeatTime = parseInt(newHeartbeat, 10);
-          const timeSinceHeartbeat = currentTime - newHeartbeatTime;
-
-          if (timeSinceHeartbeat < SESSION_TIMEOUT) {
-            const lastSessionId = localStorage.getItem(`session_${userId}`);
-            if (lastSessionId !== sessionIdRef.current) {
-              console.log(
-                "Обнаружено изменение метки времени в другой вкладке"
-              );
-              setIsSessionBlocked(true);
-              if (heartbeatIntervalRef.current) {
-                clearInterval(heartbeatIntervalRef.current);
-              }
-            }
-          }
-        }
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
-    };
-  };
-
   useEffect(() => {
     const newRank = determineRank(balance);
     if (JSON.stringify(newRank) !== JSON.stringify(currentRank)) {
@@ -457,10 +339,10 @@ function App() {
   }, [balance]);
 
   useEffect(() => {
+    console.log("Инициализация пользователя", user);
     const initializeUser = async () => {
       try {
         const isTestMode = window.env?.VITE_TEST_MODE === "true";
-
         let userData: UserData;
         let isTestUser = false;
 
@@ -481,16 +363,13 @@ function App() {
           isTestUser = true;
         } else {
           const app = (window as any).Telegram?.WebApp;
-
           if (!app) {
             userData = testUser;
             isTestUser = true;
           } else {
             app.ready();
             await new Promise((resolve) => setTimeout(resolve, 100));
-
             const telegramUser = app.initDataUnsafe?.user;
-
             if (!telegramUser) {
               userData = testUser;
               isTestUser = true;
@@ -513,16 +392,7 @@ function App() {
         }
 
         setUser(userData);
-
-        if (!isTestUser && userData.id) {
-          const cleanup = manageSession(userData.id);
-          if (typeof cleanup === "function") {
-            cleanup();
-          }
-          if (isSessionBlocked) {
-            return;
-          }
-        }
+        console.log("Пользователь установлен", userData);
 
         if (!isTestUser) {
           await getUserData(userData);
@@ -548,11 +418,11 @@ function App() {
         );
       } finally {
         setIsLoading(false);
+        console.log("Завершение инициализации, isLoading:", isLoading);
       }
     };
-
     initializeUser();
-  }, []);
+  }, []); // Убрали зависимость user
 
   useEffect(() => {
     const app = (window as any).Telegram?.WebApp;
@@ -788,7 +658,6 @@ function App() {
         initialLastEnergyUpdate={initialLastEnergyUpdate}
         saveEnergy={saveEnergy}
         maxEnergy={maxEnergy}
-        isSessionBlocked={isSessionBlocked}
       />
     </Router>
   );

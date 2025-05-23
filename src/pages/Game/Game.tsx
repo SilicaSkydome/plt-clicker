@@ -104,7 +104,6 @@ function Game({
         JSON.stringify({ energy, lastEnergyUpdate: updateTime }),
         { expires: 7 }
       );
-      console.log(`Energy ${energy} saved to cookies with time ${updateTime}`);
     } catch (error) {
       console.error("Error saving energy to cookies:", error);
     }
@@ -119,7 +118,6 @@ function Game({
           parsed.energy !== undefined &&
           parsed.lastEnergyUpdate !== undefined
         ) {
-          console.log("Loaded from cookies:", parsed);
           return {
             energy: parsed.energy,
             lastEnergyUpdate: parsed.lastEnergyUpdate,
@@ -135,9 +133,6 @@ function Game({
   const saveEnergyWithQueue = async (energy: number, updateTime: number) => {
     saveEnergyToCookies(energy, updateTime);
     energySaveQueueRef.current.push({ energy, updateTime });
-    console.log(
-      `Energy queued for Firestore: ${energy}, time: ${updateTime}. Queue length: ${energySaveQueueRef.current.length}`
-    );
 
     if (isSavingEnergyRef.current) return;
 
@@ -201,8 +196,6 @@ function Game({
       lastEnergyUpdateRef.current = currentTime;
       syncDisplayEnergy();
       await saveEnergyWithQueue(newEnergy, currentTime);
-
-      console.log("Energy synced on mount:", { newEnergy, currentTime });
     };
 
     syncEnergyOnMount();
@@ -228,10 +221,11 @@ function Game({
   };
 
   const saveChestData = async (chest: ChestData) => {
+    if (user.id === "test_user_123") {
+      return;
+    }
+
     saveQueueRef.current.push(chest);
-    console.log(
-      `Chest ${chest.id} queued for save. Queue length: ${saveQueueRef.current.length}`
-    );
 
     if (isSavingRef.current) return;
 
@@ -245,10 +239,7 @@ function Game({
           `${telegramUserId}_${nextChest.id}`
         );
         await setDoc(chestDocRef, nextChest);
-        console.log(`Chest ${nextChest.id} saved to Firestore`);
-      } catch (error) {
-        console.error(`Error saving chest ${nextChest.id}:`, error);
-      }
+      } catch (error) {}
       saveQueueRef.current.shift();
     }
     isSavingRef.current = false;
@@ -670,11 +661,6 @@ function Game({
 
     const startEnergyRecovery = () => {
       intervalId = setInterval(() => {
-        if (document.visibilityState === "hidden") {
-          console.log("Tab hidden, pausing energy recovery");
-          return;
-        }
-
         const currentTime = Date.now();
         const timeElapsed = (currentTime - lastEnergyUpdateRef.current) / 1000;
         const energyToAdd = Math.floor(timeElapsed / 30);
@@ -707,17 +693,11 @@ function Game({
 
     const processClick = (click: ClickEvent) => {
       if (click.type === "boat" && (click.energyAtClick ?? 0) < 1) {
-        console.log("Skipped boat click: insufficient energy at click");
         return;
       }
 
       setBalance((prev) => {
         const newBalance = parseFloat((prev + click.points).toFixed(2));
-        console.log(
-          `Balance updated (${click.type}${
-            click.chestId !== undefined ? `, chest ${click.chestId}` : ""
-          }): ${prev} + ${click.points} = ${newBalance}`
-        );
         return newBalance;
       });
     };
@@ -794,10 +774,7 @@ function Game({
       });
 
       boatRef.current.on("pointerdown", () => {
-        console.log("Boat clicked, current energy:", energyRef.current);
-
         if (energyRef.current <= 0) {
-          console.log("Insufficient energy for click");
           const warningText = currentSceneRef
             .current!.add.text(
               boatRef.current!.x,
@@ -820,7 +797,6 @@ function Game({
           return;
         }
 
-        console.log("Boat click registered");
         const basePoints = 0.1;
         const points = basePoints + currentRank.clickBonus;
 
@@ -828,8 +804,6 @@ function Game({
         energyRef.current = Math.max(energyRef.current - 1, 0);
         const currentTime = Date.now();
         lastEnergyUpdateRef.current = currentTime;
-
-        console.log("Energy after click:", energyRef.current);
 
         syncDisplayEnergy();
         saveEnergyWithQueue(energyRef.current, currentTime);
@@ -887,9 +861,6 @@ function Game({
           );
 
           if (attempts >= maxAttempts) {
-            console.warn(
-              `Could not find a valid position for chest ${index} after max attempts.`
-            );
             return;
           }
 
@@ -900,7 +871,6 @@ function Game({
           savedChests[index].y = y;
           saveChestData(savedChests[index]);
 
-          console.log(`Chest ${index} spawned at x: ${x}, y: ${y}`);
           initializeChest(this, x, y, scaleFactor, index, chest.lastSpawnTime);
         });
       });
@@ -911,7 +881,6 @@ function Game({
         (entry) => entry.chest?.visible && entry.chest?.active
       ).length;
       if (lastVisibleCount !== visibleCount) {
-        console.log(`Visible chests: ${visibleCount}`);
         lastVisibleCount = visibleCount;
       }
     }
@@ -967,9 +936,7 @@ function Game({
     return () => {
       const currentTime = Date.now();
       saveEnergyToCookies(energyRef.current, currentTime);
-      saveEnergyWithQueue(energyRef.current, currentTime).then(() => {
-        console.log("Energy saved to Firestore before unmount");
-      });
+      saveEnergyWithQueue(energyRef.current, currentTime);
 
       window.removeEventListener("resize", handleResize);
 
