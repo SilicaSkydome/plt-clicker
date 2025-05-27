@@ -58,6 +58,8 @@
   justify-content: end;
   align-items: center;
   gap: 5px;
+
+  cursor: pointer;
 }
 .balance img {
   width: 50px;
@@ -234,6 +236,38 @@
 .isOpen {
   display: flex !important;
 }
+.storeModal {
+  position: absolute;
+  width: 90%;
+  height: 70vh;
+  left: 50%;
+  transform: translateX(-50%);
+
+  background: #212324;
+  bottom: 0;
+  border-radius: 15px 15px 0 0;
+
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 25px;
+
+  z-index: 100;
+}
+.storeModal::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 70px;
+  height: 2px;
+  border-radius: 2px;
+
+  background-color: #ffe09d;
+  z-index: 110;
+}
 @media (max-width: 550px) {
   .header {
     padding: 10px 20px;
@@ -268,8 +302,6 @@
   .headerRow {
     gap: 0;
     justify-content: start;
-  }
-  .profile {
   }
   .compass {
     font-size: 8px;

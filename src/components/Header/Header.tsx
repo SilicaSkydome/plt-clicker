@@ -13,14 +13,22 @@ interface HeaderProps {
 }
 
 function Header({ user, balance, ranks }: HeaderProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
+  const [isStoreOpen, setIsStoreOpen] = React.useState(false);
 
   const handleProfileClick = () => {
-    setIsOpen(!isOpen);
+    setIsProfileOpen(!isProfileOpen);
   };
 
-  const ref = useClickAway(() => {
-    setIsOpen(false);
+  const handleStoreClick = () => {
+    setIsStoreOpen(!isStoreOpen);
+  };
+
+  const profileRef = useClickAway(() => {
+    setIsProfileOpen(false);
+  });
+  const storeRef = useClickAway(() => {
+    setIsStoreOpen(false);
   });
 
   const formatBalance = (balance: number | null): string => {
@@ -60,7 +68,7 @@ function Header({ user, balance, ranks }: HeaderProps) {
               />
             )}
           </div>
-          <div className="balance">
+          <div className="balance" onClick={() => handleStoreClick()}>
             <div className="balanceImg">
               <img src={Token} alt="" />
             </div>
@@ -71,9 +79,12 @@ function Header({ user, balance, ranks }: HeaderProps) {
           </div>
         </div>
       </div>
-      {/* 
-      // @ts-ignore */}
-      <div ref={ref} className={`profileModal ${isOpen ? "isOpen" : ""}`}>
+
+      <div
+        //@ts-ignore
+        ref={profileRef}
+        className={`profileModal ${isProfileOpen ? "isOpen" : ""}`}
+      >
         <h1>Profile</h1>
         <div className="avatar">
           <img src={user?.photoUrl} alt="avatar" />
@@ -85,6 +96,16 @@ function Header({ user, balance, ranks }: HeaderProps) {
         </div>
         <div className="seaCount">You have opened 4 seas</div>
         <div className="tillNext">Until the next sea is left:</div>
+      </div>
+      <div
+        //@ts-ignore
+        ref={storeRef}
+        className={`storeModal ${isStoreOpen ? "isOpen" : ""}`}
+      >
+        <h1>Store</h1>
+        <div className="storeContent">
+          <p>Coming soon...</p>
+        </div>
       </div>
     </>
   );
