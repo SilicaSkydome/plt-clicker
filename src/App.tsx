@@ -171,6 +171,7 @@ const testUser: UserData = {
   rank: determineRank(990),
   energy: 50,
   lastEnergyUpdate: Date.now(),
+  selectedShip: "ship1", // Устанавливаем корабль по умолчанию
 };
 
 interface AppContentProps {
@@ -185,6 +186,7 @@ interface AppContentProps {
   initialLastEnergyUpdate: number;
   saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
   maxEnergy: number;
+  setUser: React.Dispatch<React.SetStateAction<UserData>>;
 }
 
 const AppContent = ({
@@ -199,6 +201,7 @@ const AppContent = ({
   initialLastEnergyUpdate,
   saveEnergy,
   maxEnergy,
+  setUser,
 }: AppContentProps) => {
   const location = useLocation();
   const [isNight, setIsNight] = useState(isNightTime());
@@ -239,6 +242,7 @@ const AppContent = ({
               initialLastEnergyUpdate={initialLastEnergyUpdate}
               saveEnergy={saveEnergy}
               maxEnergy={maxEnergy}
+              setUser={setUser}
             />
           }
         />
@@ -275,6 +279,7 @@ function App() {
     rank: RANKS[0],
     energy: 50,
     lastEnergyUpdate: Date.now(),
+    selectedShip: "ship1", // Устанавливаем корабль по умолчанию
   });
   const { isSessionBlocked } = useSession(user.id); // Добавляем хук
   const [isLoading, setIsLoading] = useState(true);
@@ -664,6 +669,7 @@ function App() {
             initialLastEnergyUpdate={initialLastEnergyUpdate}
             saveEnergy={saveEnergy}
             maxEnergy={maxEnergy}
+            setUser={setUser}
           />
         </Router>
       )}

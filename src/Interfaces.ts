@@ -43,7 +43,8 @@ export interface UserData {
   balance: number;
   tasks: TaskData[];
   referals?: Referal[];
-  rank?: Rank; // Добавляем поле для ранга
-  energy: number; // Добавляем поле для энергии
-  lastEnergyUpdate: number; // Добавляем поле для времени последнего обновления энергии
+  rank?: Rank;
+  energy: number;
+  lastEnergyUpdate: number;
+  selectedShip?: string; // Добавляем поле для выбранного корабля
 }

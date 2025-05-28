@@ -5,16 +5,30 @@ import Token from "../../assets/img/TOKEN.svg";
 import { useClickAway } from "@uidotdev/usehooks";
 import { Rank, UserData } from "../../Interfaces";
 import ProgressBar from "../Common/ProgressBar/ProgressBar";
+import { db } from "../../../firebaseConfig";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface HeaderProps {
   balance: number;
   user: UserData | null;
   ranks: Rank[];
+  setUser: React.Dispatch<React.SetStateAction<UserData>>;
 }
 
-function Header({ user, balance, ranks }: HeaderProps) {
+// Список доступных кораблей
+const ships = [
+  { id: "ship1", name: "Ship 1", image: "/src/assets/img/ship.webp" },
+  { id: "ship2", name: "Ship 2", image: "/src/assets/img/ship2.png" },
+  { id: "ship3", name: "Ship 3", image: "/src/assets/img/ship3.png" },
+  { id: "ship4", name: "Ship 4", image: "/src/assets/img/ship4.png" },
+  { id: "ship5", name: "Ship 5", image: "/src/assets/img/ship5.png" },
+  { id: "ship6", name: "Ship 6", image: "/src/assets/img/ship6.png" },
+];
+
+function Header({ user, balance, ranks, setUser }: HeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const [isStoreOpen, setIsStoreOpen] = React.useState(false);
+  const isTestMode = false;
 
   const handleProfileClick = () => {
     setIsProfileOpen(!isProfileOpen);
@@ -22,6 +36,27 @@ function Header({ user, balance, ranks }: HeaderProps) {
 
   const handleStoreClick = () => {
     setIsStoreOpen(!isStoreOpen);
+  };
+
+  // Функция выбора корабля
+  const handleShipSelect = async (shipId: string) => {
+    if (!user?.id) return;
+
+    try {
+      if (isTestMode) {
+        // В тестовом режиме обновляем только локальное состояние
+        console.log(`Тестовый режим: Выбран корабль ${shipId}`);
+        setUser((prev) => ({ ...prev, selectedShip: shipId }));
+      } else {
+        // В обычном режиме сохраняем в Firestore
+        const userDocRef = doc(db, "userData", user.id);
+        await updateDoc(userDocRef, { selectedShip: shipId });
+        setUser((prev) => ({ ...prev, selectedShip: shipId }));
+      }
+      setIsStoreOpen(false);
+    } catch (error) {
+      console.error("Ошибка при сохранении корабля:", error);
+    }
   };
 
   const profileRef = useClickAway(() => {
@@ -78,6 +113,14 @@ function Header({ user, balance, ranks }: HeaderProps) {
             </div>
           </div>
         </div>
+        {isTestMode && (
+          <div
+            className="testModeIndicator"
+            style={{ color: "red", textAlign: "center" }}
+          >
+            Тестовый оффлайн-режим
+          </div>
+        )}
       </div>
 
       <div
@@ -104,7 +147,31 @@ function Header({ user, balance, ranks }: HeaderProps) {
       >
         <h1>Store</h1>
         <div className="storeContent">
-          <p>Coming soon...</p>
+          <h2>Choose your ship</h2>
+          <div className="shipsList" style={{ display: "flex", gap: "10px" }}>
+            {ships.map((ship) => (
+              <div
+                key={ship.id}
+                className="shipItem"
+                onClick={() => handleShipSelect(ship.id)}
+                style={{
+                  cursor: "pointer",
+                  border:
+                    user?.selectedShip === ship.id
+                      ? "2px solid gold"
+                      : "2px solid transparent",
+                  padding: "5px",
+                }}
+              >
+                <img
+                  src={ship.image}
+                  alt={ship.name}
+                  style={{ width: "100px", height: "100px" }}
+                />
+                <p>{ship.name}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>

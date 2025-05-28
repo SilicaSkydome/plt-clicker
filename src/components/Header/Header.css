@@ -268,6 +268,16 @@
   background-color: #ffe09d;
   z-index: 110;
 }
+.storeContent {
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+}
+.shipsList {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
 @media (max-width: 550px) {
   .header {
     padding: 10px 20px;

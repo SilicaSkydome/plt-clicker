@@ -5,7 +5,12 @@ import chest from "../../assets/img/chestPlaceholder.webp";
 import ring1 from "../../assets/img/circles/1.png";
 import ring2 from "../../assets/img/circles/2.png";
 import ring3 from "../../assets/img/circles/3.png";
-import shipPlaceholder from "../../assets/img/ship.webp";
+import ship1 from "../../assets/img/ship.webp";
+import ship2 from "../../assets/img/ship2.png";
+import ship3 from "../../assets/img/ship3.png";
+import ship4 from "../../assets/img/ship4.png";
+import ship5 from "../../assets/img/ship5.png";
+import ship6 from "../../assets/img/ship6.png";
 import "./Game.css";
 import EnergyBar from "../../components/Common/EnergyBar/EnergyBar";
 import { db } from "../../../firebaseConfig";
@@ -31,6 +36,7 @@ interface GameProps {
   initialLastEnergyUpdate: number;
   saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
   maxEnergy: number;
+  setUser: React.Dispatch<React.SetStateAction<UserData>>;
 }
 
 interface ChestData {
@@ -58,6 +64,7 @@ function Game({
   initialLastEnergyUpdate,
   saveEnergy,
   maxEnergy,
+  setUser,
 }: GameProps) {
   const gameRef = useRef<HTMLDivElement | null>(null);
   const gameInstance = useRef<Phaser.Game | null>(null);
@@ -92,6 +99,37 @@ function Game({
     const referenceWidth = 360;
     return gameWidth / referenceWidth;
   });
+  const isTestMode = window.env?.VITE_TEST_MODE === "true";
+
+  // Карта текстур кораблей
+  const shipTextures: { [key: string]: string } = {
+    ship1: "ship1",
+    ship2: "ship2",
+    ship3: "ship3",
+    ship4: "ship4",
+    ship5: "ship5",
+    ship6: "ship6",
+  };
+
+  // Обновление текстуры корабля при изменении user.selectedShip
+  useEffect(() => {
+    if (boatRef.current && currentSceneRef.current && user.selectedShip) {
+      const textureKey = shipTextures[user.selectedShip] || "ship1";
+      boatRef.current.setTexture(textureKey);
+      console.log(`Корабль обновлен: ${textureKey}`);
+
+      // Пересоздаем анимацию, чтобы она не сбивалась
+      currentSceneRef.current.tweens.killTweensOf(boatRef.current);
+      currentSceneRef.current.tweens.add({
+        targets: boatRef.current,
+        y: baseHeight / 2 + 10 * scaleFactor,
+        duration: 3000,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+    }
+  }, [user.selectedShip, baseHeight, scaleFactor]);
 
   const syncDisplayEnergy = () => {
     setDisplayEnergy(energyRef.current);
@@ -163,7 +201,7 @@ function Game({
         newLastEnergyUpdate = cookieData.lastEnergyUpdate;
       }
 
-      if (telegramUserId !== "default") {
+      if (telegramUserId !== "default" && !isTestMode) {
         try {
           const userDocRef = doc(db, "userData", telegramUserId);
           const userDoc = await getDoc(userDocRef);
@@ -221,7 +259,7 @@ function Game({
   };
 
   const saveChestData = async (chest: ChestData) => {
-    if (user.id === "test_user_123") {
+    if (user.id === "test_user_123" || isTestMode) {
       return;
     }
 
@@ -246,6 +284,14 @@ function Game({
   };
 
   const loadChestData = async (attempts = 3): Promise<ChestData[]> => {
+    if (isTestMode) {
+      return [
+        { x: 0, y: 0, id: 0, lastSpawnTime: null, userId: telegramUserId },
+        { x: 0, y: 0, id: 1, lastSpawnTime: null, userId: telegramUserId },
+        { x: 0, y: 0, id: 2, lastSpawnTime: null, userId: telegramUserId },
+      ];
+    }
+
     for (let i = 0; i < attempts; i++) {
       try {
         const chestsQuery = query(
@@ -536,7 +582,8 @@ function Game({
       if (
         document.visibilityState === "visible" &&
         telegramUserId !== "default" &&
-        currentSceneRef.current
+        currentSceneRef.current &&
+        !isTestMode
       ) {
         console.log("Tab visible, syncing energy and chests from Firestore");
         try {
@@ -744,20 +791,26 @@ function Game({
       this.load.image("ring1", ring1);
       this.load.image("ring2", ring2);
       this.load.image("ring3", ring3);
-      this.load.image("boat", shipPlaceholder);
+      this.load.image("ship1", ship1);
+      this.load.image("ship2", ship2);
+      this.load.image("ship3", ship3);
+      this.load.image("ship4", ship4);
+      this.load.image("ship5", ship5);
+      this.load.image("ship6", ship6);
     }
 
     function create(this: Phaser.Scene) {
       currentSceneRef.current = this;
       this.input.setPollAlways();
 
+      const textureKey = shipTextures[user.selectedShip || "ship1"] || "ship1";
       boatRef.current = this.add
-        .image(baseWidth / 2, baseHeight / 2, "boat")
+        .image(baseWidth / 2, baseHeight / 2, textureKey)
         .setInteractive({ useHandCursor: true, pixelPerfect: true })
         .setDepth(2) as Phaser.GameObjects.Image;
 
       const boatTexture = this.textures
-        .get("boat")
+        .get(textureKey)
         .getSourceImage() as HTMLImageElement;
       const boatOriginalWidth = boatTexture.width;
       const desiredBoatWidth = baseWidth * 0.25;
@@ -955,7 +1008,7 @@ function Game({
 
   return (
     <>
-      <Header balance={balance} user={user} ranks={ranks} />
+      <Header balance={balance} user={user} ranks={ranks} setUser={setUser} />
       <div ref={gameRef} className="game-container" />
       <EnergyBar currentEnergy={displayEnergy} maxEnergy={maxEnergy} />
     </>
