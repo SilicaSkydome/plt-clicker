@@ -31,7 +31,7 @@ interface GameProps {
   balance: number;
   setBalance: React.Dispatch<React.SetStateAction<number>>;
   currentRank: Rank;
-  ranks: Rank[];
+  ranks: Array<Rank>;
   initialEnergy: number;
   initialLastEnergyUpdate: number;
   saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
@@ -112,6 +112,16 @@ function Game({
     ship6: "ship6",
   };
 
+  // Коэффициенты корректировки масштаба для каждого корабля
+  const shipScaleAdjustments: { [key: string]: number } = {
+    ship1: 1.0, // Базовый корабль
+    ship2: 4.5, // Увеличиваем масштаб, если ship2 слишком маленький
+    ship3: 4,
+    ship4: 4,
+    ship5: 4,
+    ship6: 4,
+  };
+
   // Загрузка данных пользователя из Firebase
   useEffect(() => {
     const loadUserData = async () => {
@@ -149,9 +159,18 @@ function Game({
     if (boatRef.current && currentSceneRef.current && user.selectedShip) {
       const textureKey = shipTextures[user.selectedShip] || "ship1";
       boatRef.current.setTexture(textureKey);
-      console.log(`Корабль обновлен: ${textureKey}`);
 
-      // Пересоздаем анимацию, чтобы она не сбивалась
+      // Устанавливаем масштаб с учетом корректировки
+      const baseBoatScale = 0.25 * scaleFactor;
+      const adjustment = shipScaleAdjustments[textureKey] || 1.0;
+      const finalScale = baseBoatScale * adjustment;
+      boatRef.current.setScale(finalScale);
+
+      console.log(
+        `Корабль обновлен: ${textureKey}, масштаб: ${finalScale}, корректировка: ${adjustment}`
+      );
+
+      // Пересоздаем анимацию
       currentSceneRef.current.tweens.killTweensOf(boatRef.current);
       currentSceneRef.current.tweens.add({
         targets: boatRef.current,
@@ -840,6 +859,19 @@ function Game({
       this.load.image("ship4", ship4);
       this.load.image("ship5", ship5);
       this.load.image("ship6", ship6);
+
+      // Логируем размеры текстур при загрузке
+      this.load.on(
+        "filecomplete",
+        (key: string, type: string, texture: any) => {
+          if (type === "image" && key.startsWith("ship")) {
+            const img = texture as HTMLImageElement;
+            console.log(
+              `Текстура ${key} загружена: ширина=${img.width}px, высота=${img.height}px`
+            );
+          }
+        }
+      );
     }
 
     function create(this: Phaser.Scene) {
@@ -852,13 +884,15 @@ function Game({
         .setInteractive({ useHandCursor: true, pixelPerfect: true })
         .setDepth(2) as Phaser.GameObjects.Image;
 
-      const boatTexture = this.textures
-        .get(textureKey)
-        .getSourceImage() as HTMLImageElement;
-      const boatOriginalWidth = boatTexture.width;
-      const desiredBoatWidth = baseWidth * 0.25;
-      const boatScale = desiredBoatWidth / boatOriginalWidth;
-      boatRef.current.setScale(boatScale);
+      // Устанавливаем масштаб с учетом корректировки
+      const baseBoatScale = 0.25 * scaleFactor;
+      const adjustment = shipScaleAdjustments[textureKey] || 1.0;
+      const finalScale = baseBoatScale * adjustment;
+      boatRef.current.setScale(finalScale);
+
+      console.log(
+        `Корабль создан: ${textureKey}, масштаб: ${finalScale}, корректировка: ${adjustment}`
+      );
 
       this.tweens.add({
         targets: boatRef.current,
@@ -1007,6 +1041,15 @@ function Game({
       if (gameInstance.current && boatRef.current) {
         gameInstance.current.scale.resize(newBaseWidth, newBaseHeight);
         boatRef.current.setPosition(newBaseWidth / 2, newBaseHeight / 2);
+        // Пересчитываем масштаб корабля при изменении размера окна
+        const textureKey = boatRef.current.texture.key;
+        const baseBoatScale = 0.25 * newScaleFactor;
+        const adjustment = shipScaleAdjustments[textureKey] || 1.0;
+        const finalScale = baseBoatScale * adjustment;
+        boatRef.current.setScale(finalScale);
+        console.log(
+          `Масштаб при ресайзе: ${textureKey}, масштаб: ${finalScale}, корректировка: ${adjustment}`
+        );
         chestDataRef.current.forEach((entry) => {
           if (entry.chest?.active) {
             let newX = Phaser.Math.Clamp(entry.x, 50, newBaseWidth - 50);
