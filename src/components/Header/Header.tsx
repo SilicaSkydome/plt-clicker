@@ -7,6 +7,12 @@ import { Rank, UserData } from "../../Interfaces";
 import ProgressBar from "../Common/ProgressBar/ProgressBar";
 import { db } from "../../../firebaseConfig";
 import { doc, updateDoc } from "firebase/firestore";
+import ship1 from "../../assets/img/ship.webp";
+import ship2 from "../../assets/img/ship2.png";
+import ship3 from "../../assets/img/ship3.png";
+import ship4 from "../../assets/img/ship4.png";
+import ship5 from "../../assets/img/ship5.png";
+import ship6 from "../../assets/img/ship6.png";
 
 interface HeaderProps {
   balance: number;
@@ -17,12 +23,12 @@ interface HeaderProps {
 
 // Список доступных кораблей
 const ships = [
-  { id: "ship1", name: "Ship 1", image: "/src/assets/img/ship.webp" },
-  { id: "ship2", name: "Ship 2", image: "/src/assets/img/ship2.png" },
-  { id: "ship3", name: "Ship 3", image: "/src/assets/img/ship3.png" },
-  { id: "ship4", name: "Ship 4", image: "/src/assets/img/ship4.png" },
-  { id: "ship5", name: "Ship 5", image: "/src/assets/img/ship5.png" },
-  { id: "ship6", name: "Ship 6", image: "/src/assets/img/ship6.png" },
+  { id: "ship1", name: "Ship 1", image: ship1 },
+  { id: "ship2", name: "Ship 2", image: ship2 },
+  { id: "ship3", name: "Ship 3", image: ship3 },
+  { id: "ship4", name: "Ship 4", image: ship4 },
+  { id: "ship5", name: "Ship 5", image: ship5 },
+  { id: "ship6", name: "Ship 6", image: ship6 },
 ];
 
 function Header({ user, balance, ranks, setUser }: HeaderProps) {
