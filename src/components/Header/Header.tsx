@@ -34,7 +34,7 @@ const ships = [
 function Header({ user, balance, ranks, setUser }: HeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const [isStoreOpen, setIsStoreOpen] = React.useState(false);
-  const isTestMode = true;
+  const isTestMode = false;
 
   const handleProfileClick = () => {
     setIsProfileOpen(!isProfileOpen);

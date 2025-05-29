@@ -116,10 +116,10 @@ function Game({
   const shipScaleAdjustments: { [key: string]: number } = {
     ship1: 1.0, // Базовый корабль
     ship2: 4.5, // Увеличиваем масштаб, если ship2 слишком маленький
-    ship3: 4,
-    ship4: 4,
-    ship5: 4,
-    ship6: 4,
+    ship3: 3.5,
+    ship4: 3.5,
+    ship5: 3.5,
+    ship6: 3.5,
   };
 
   // Загрузка данных пользователя из Firebase
