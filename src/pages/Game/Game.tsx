@@ -100,6 +100,7 @@ function Game({
     return gameWidth / referenceWidth;
   });
   const isTestMode = window.env?.VITE_TEST_MODE === "true";
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
 
   // Карта текстур кораблей
   const shipTextures: { [key: string]: string } = {
@@ -110,6 +111,38 @@ function Game({
     ship5: "ship5",
     ship6: "ship6",
   };
+
+  // Загрузка данных пользователя из Firebase
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (telegramUserId === "default" || isTestMode) {
+        setIsUserLoaded(true);
+        return;
+      }
+
+      try {
+        const userDocRef = doc(db, "userData", telegramUserId);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as UserData;
+          setUser((prev) => ({
+            ...prev,
+            selectedShip: userData.selectedShip || "ship1",
+            energy: userData.energy ?? prev.energy,
+            lastEnergyUpdate:
+              userData.lastEnergyUpdate ?? prev.lastEnergyUpdate,
+          }));
+          console.log("User data loaded from Firestore:", userData);
+        }
+      } catch (error) {
+        console.error("Error loading user data from Firestore:", error);
+      } finally {
+        setIsUserLoaded(true);
+      }
+    };
+
+    loadUserData();
+  }, [telegramUserId, setUser, isTestMode]);
 
   // Обновление текстуры корабля при изменении user.selectedShip
   useEffect(() => {
@@ -277,7 +310,9 @@ function Game({
           `${telegramUserId}_${nextChest.id}`
         );
         await setDoc(chestDocRef, nextChest);
-      } catch (error) {}
+      } catch (error) {
+        console.error("Error saving chest data:", error);
+      }
       saveQueueRef.current.shift();
     }
     isSavingRef.current = false;
@@ -606,6 +641,12 @@ function Game({
               newEnergy = storedEnergy;
               newLastEnergyUpdate = storedLastUpdate;
             }
+
+            // Синхронизируем selectedShip при возврате на вкладку
+            setUser((prev) => ({
+              ...prev,
+              selectedShip: userData.selectedShip || "ship1",
+            }));
           }
 
           const currentTime = Date.now();
@@ -701,7 +742,7 @@ function Game({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [telegramUserId, maxEnergy, scaleFactor, baseWidth, baseHeight]);
+  }, [telegramUserId, maxEnergy, scaleFactor, baseWidth, baseHeight, setUser]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
@@ -754,6 +795,8 @@ function Game({
   }, [clickQueue, setBalance]);
 
   useEffect(() => {
+    if (!isUserLoaded) return; // Ждем загрузки данных пользователя
+
     let gameWidth = window.innerWidth;
     let gameHeight = (window.innerHeight - 100) * (baseHeight / baseWidth);
 
@@ -1004,7 +1047,17 @@ function Game({
         boatRef.current = null;
       }
     };
-  }, [currentRank, initialEnergy, initialLastEnergyUpdate, telegramUserId]);
+  }, [
+    currentRank,
+    initialEnergy,
+    initialLastEnergyUpdate,
+    telegramUserId,
+    isUserLoaded,
+  ]);
+
+  if (!isUserLoaded) {
+    return <div>Загрузка...</div>;
+  }
 
   return (
     <>
