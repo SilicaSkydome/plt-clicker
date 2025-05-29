@@ -41,12 +41,19 @@
 }
 .profile {
   flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: start;
+  align-items: center;
+  gap: 10px;
 }
 .profilePicture {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
 
   border-radius: 50%;
+
+  position: relative;
 }
 .compass {
   flex: 1;
@@ -78,9 +85,10 @@
 }
 
 .profilePicture img {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
+  border: 2px solid #d7b877;
 }
 
 .profileModal {
@@ -236,6 +244,30 @@
 .isOpen {
   display: flex !important;
 }
+.storeButton {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #212324;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border: 2px solid #d7b877;
+
+  border-radius: 50%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease-in-out;
+}
+.storeButton img {
+  width: 80%;
+  height: 80%;
+  cursor: pointer;
+}
+.storeButton:hover {
+  background: #2d2d2d;
+}
 .storeModal {
   position: absolute;
   width: 90%;
@@ -304,6 +336,24 @@
   height: 70%;
   border-radius: 10px;
   padding: 5px;
+}
+.bankModal {
+  position: absolute;
+  width: 90%;
+  height: 70vh;
+  left: 50%;
+  transform: translateX(-50%);
+
+  background: #212324;
+  bottom: 0;
+  border-radius: 15px 15px 0 0;
+
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 25px;
+
+  z-index: 100;
 }
 @media (max-width: 550px) {
   .header {

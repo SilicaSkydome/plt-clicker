@@ -13,6 +13,7 @@ import ship3 from "../../assets/img/ship3.png";
 import ship4 from "../../assets/img/ship4.png";
 import ship5 from "../../assets/img/ship5.png";
 import ship6 from "../../assets/img/ship6.png";
+import Store from "../../assets/img/store.svg";
 
 interface HeaderProps {
   balance: number;
@@ -34,6 +35,7 @@ const ships = [
 function Header({ user, balance, ranks, setUser }: HeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const [isStoreOpen, setIsStoreOpen] = React.useState(false);
+  const [isBankOpen, setIsBankOpen] = React.useState(false);
   const isTestMode = false;
 
   const handleProfileClick = () => {
@@ -42,6 +44,10 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
 
   const handleStoreClick = () => {
     setIsStoreOpen(!isStoreOpen);
+  };
+
+  const handleBankClick = () => {
+    setIsBankOpen(!isBankOpen);
   };
 
   // Функция выбора корабля
@@ -72,6 +78,10 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
     setIsStoreOpen(false);
   });
 
+  const bankRef = useClickAway(() => {
+    setIsBankOpen(false);
+  });
+
   const formatBalance = (balance: number | null): string => {
     if (balance === null) return "Загрузка...";
 
@@ -99,7 +109,11 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
             <div className="profilePicture">
               <img src={user?.photoUrl} alt="avatar" />
             </div>
+            <div className="storeButton" onClick={() => handleStoreClick()}>
+              <img src={Store} alt="Store" />
+            </div>
           </div>
+
           <div className="compass">
             {user?.rank && (
               <ProgressBar
@@ -109,7 +123,7 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
               />
             )}
           </div>
-          <div className="balance" onClick={() => handleStoreClick()}>
+          <div className="balance" onClick={() => handleBankClick()}>
             <div className="balanceImg">
               <img src={Token} alt="" />
             </div>
@@ -174,6 +188,17 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+      <div
+        //@ts-ignore
+        ref={bankRef}
+        className={`bankModal ${isBankOpen ? "isOpen" : ""}`}
+      >
+        <h1>Bank</h1>
+        <div className="bankContent">
+          <p>Bank is under construction</p>
+          <p>Stay tuned for updates!</p>
         </div>
       </div>
     </>
