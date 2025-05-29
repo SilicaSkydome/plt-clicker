@@ -272,11 +272,38 @@
   display: flex;
   flex-direction: column;
   width: 90%;
+  height: 100%;
+  position: relative;
 }
 .shipsList {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
+  overflow-y: scroll;
+  height: 100%;
+
+  margin-bottom: 100px;
+}
+.shipItem {
+  width: 45%;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+
+  background: #2d2d2d;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.shipItem img {
+  width: auto;
+  height: 70%;
+  border-radius: 10px;
+  padding: 5px;
 }
 @media (max-width: 550px) {
   .header {

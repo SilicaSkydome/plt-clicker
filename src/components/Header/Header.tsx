@@ -23,12 +23,12 @@ interface HeaderProps {
 
 // Список доступных кораблей
 const ships = [
-  { id: "ship1", name: "Ship 1", image: ship1 },
-  { id: "ship2", name: "Ship 2", image: ship2 },
-  { id: "ship3", name: "Ship 3", image: ship3 },
-  { id: "ship4", name: "Ship 4", image: ship4 },
-  { id: "ship5", name: "Ship 5", image: ship5 },
-  { id: "ship6", name: "Ship 6", image: ship6 },
+  { id: "ship1", name: "Default", image: ship1 },
+  { id: "ship2", name: "Schooner", image: ship2 },
+  { id: "ship3", name: "Brig", image: ship3 },
+  { id: "ship4", name: "Fregate", image: ship4 },
+  { id: "ship5", name: "Bark", image: ship5 },
+  { id: "ship6", name: "Galleon", image: ship6 },
 ];
 
 function Header({ user, balance, ranks, setUser }: HeaderProps) {
@@ -169,11 +169,7 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
                   padding: "5px",
                 }}
               >
-                <img
-                  src={ship.image}
-                  alt={ship.name}
-                  style={{ width: "100px", height: "100px" }}
-                />
+                <img src={ship.image} alt={ship.name} />
                 <p>{ship.name}</p>
               </div>
             ))}
