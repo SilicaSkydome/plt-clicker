@@ -47,12 +47,7 @@
 }
 
 .ship-item:hover {
-  background-color: #f0f0f0;
-}
-
-.ship-item.selected {
-  border-color: #ffd700;
-  background-color: #fffacd;
+  background-color: #2c2f33;
 }
 
 .ship-image {
@@ -79,4 +74,34 @@
   text-align: center;
 
   color: #5e5e5e;
+}
+.ship-condition {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 150%;
+  text-align: center;
+
+  color: #ffffff;
+}
+.ship-button {
+  font-family: "Inter";
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 150%;
+  text-align: center;
+  color: #fff;
+  background-color: #d7b877;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.ship-button:hover {
+  background-color: #c6a65f;
+}
+.ship-button:disabled {
+  background-color: #5e5e5e;
+  cursor: not-allowed;
 }

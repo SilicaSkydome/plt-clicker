@@ -18,36 +18,53 @@ interface StoreProps {
 }
 
 const ships = [
-  { id: "ship1", image: ship1, name: "Default", description: "Default ship" },
+  {
+    id: "ship1",
+    image: ship1,
+    name: "Default",
+    description: "Default ship",
+    condition: "Available for all users",
+    price: 0,
+  },
   {
     id: "ship2",
     image: ship2,
     name: "Schooner",
     description: "A two-masted ship with both square and fore-and-aft sails",
+    condition: "Available for all users",
+    price: 0,
   },
   {
     id: "ship3",
     image: ship3,
     name: "Brig",
     description: "A two-masted vessel with square sails on both masts",
+    condition: "Available for all users",
+    price: 0,
   },
   {
     id: "ship4",
     image: ship4,
     name: "Fregate",
     description: "A multi-purpose warship, typically with three masts",
+    condition: "Available for all users",
+    price: 0,
   },
   {
     id: "ship5",
     image: ship5,
     name: "Bark",
     description: "A vessel with masts rigged with diagonally placed sails",
+    condition: "Available for all users",
+    price: 0,
   },
   {
     id: "ship6",
     image: ship6,
     name: "Galleon",
     description: "A large sailing ship used primarily for trade and war",
+    condition: "Available for all users",
+    price: 0,
   },
 ];
 
@@ -77,11 +94,24 @@ const Store: React.FC<StoreProps> = ({ user, setUser, telegramUserId }) => {
             className={`ship-item ${
               user.selectedShip === ship.id ? "selected" : ""
             }`}
-            onClick={() => handleShipSelect(ship.id)}
           >
             <img src={ship.image} alt={ship.name} className="ship-image" />
             <p className="ship-name">{ship.name}</p>
             <p className="ship-description">{ship.description}</p>
+            <p className="ship-condition">{ship.condition}</p>
+
+            {user.selectedShip === ship.id ? (
+              <button className="ship-button" disabled>
+                Selected
+              </button>
+            ) : (
+              <button
+                className="ship-button"
+                onClick={() => handleShipSelect(ship.id)}
+              >
+                Buy for {ship.price} Gold
+              </button>
+            )}
           </div>
         ))}
       </div>
