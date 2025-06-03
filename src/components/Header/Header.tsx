@@ -14,6 +14,7 @@ import ship4 from "../../assets/img/ship4.png";
 import ship5 from "../../assets/img/ship5.png";
 import ship6 from "../../assets/img/ship6.png";
 import Store from "../../assets/img/store.svg";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   balance: number;
@@ -34,48 +35,24 @@ const ships = [
 
 function Header({ user, balance, ranks, setUser }: HeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
-  const [isStoreOpen, setIsStoreOpen] = React.useState(false);
   const [isBankOpen, setIsBankOpen] = React.useState(false);
   const isTestMode = false;
+  const navigate = useNavigate();
 
   const handleProfileClick = () => {
     setIsProfileOpen(!isProfileOpen);
   };
 
   const handleStoreClick = () => {
-    setIsStoreOpen(!isStoreOpen);
+    navigate("/store");
   };
 
   const handleBankClick = () => {
     setIsBankOpen(!isBankOpen);
   };
 
-  // Функция выбора корабля
-  const handleShipSelect = async (shipId: string) => {
-    if (!user?.id) return;
-
-    try {
-      if (isTestMode) {
-        // В тестовом режиме обновляем только локальное состояние
-        console.log(`Тестовый режим: Выбран корабль ${shipId}`);
-        setUser((prev) => ({ ...prev, selectedShip: shipId }));
-      } else {
-        // В обычном режиме сохраняем в Firestore
-        const userDocRef = doc(db, "userData", user.id);
-        await updateDoc(userDocRef, { selectedShip: shipId });
-        setUser((prev) => ({ ...prev, selectedShip: shipId }));
-      }
-      setIsStoreOpen(false);
-    } catch (error) {
-      console.error("Ошибка при сохранении корабля:", error);
-    }
-  };
-
   const profileRef = useClickAway(() => {
     setIsProfileOpen(false);
-  });
-  const storeRef = useClickAway(() => {
-    setIsStoreOpen(false);
   });
 
   const bankRef = useClickAway(() => {
@@ -161,37 +138,7 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
         <div className="tillNext">Until the next sea is left:</div>
       </div>
       <div
-        //@ts-ignore
-        ref={storeRef}
-        className={`storeModal ${isStoreOpen ? "isOpen" : ""}`}
-      >
-        <h1>Store</h1>
-        <div className="storeContent">
-          <h2>Choose your ship</h2>
-          <div className="shipsList" style={{ display: "flex", gap: "10px" }}>
-            {ships.map((ship) => (
-              <div
-                key={ship.id}
-                className="shipItem"
-                onClick={() => handleShipSelect(ship.id)}
-                style={{
-                  cursor: "pointer",
-                  border:
-                    user?.selectedShip === ship.id
-                      ? "2px solid gold"
-                      : "2px solid transparent",
-                  padding: "5px",
-                }}
-              >
-                <img src={ship.image} alt={ship.name} />
-                <p>{ship.name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div
-        //@ts-ignore
+        //@ts-ignoreI'm
         ref={bankRef}
         className={`bankModal ${isBankOpen ? "isOpen" : ""}`}
       >

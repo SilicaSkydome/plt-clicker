@@ -1,0 +1,82 @@
+.ship-selector {
+  padding: 20px;
+  text-align: center;
+
+  overflow-y: scroll;
+  margin-bottom: 150px;
+}
+
+.ship-selector h2 {
+  font-family: "Le Major";
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 150%;
+  text-align: center;
+  text-transform: capitalize;
+
+  color: #d7b877;
+}
+
+.ship-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: start;
+  position: relative;
+  gap: 20px;
+}
+
+.ship-item {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  background-color: #212324;
+
+  border: 1px solid;
+
+  border-image-source: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 2.78%,
+    #767041 50.42%,
+    rgba(102, 102, 102, 0) 100%
+  );
+  border-image-slice: 1;
+}
+
+.ship-item:hover {
+  background-color: #f0f0f0;
+}
+
+.ship-item.selected {
+  border-color: #ffd700;
+  background-color: #fffacd;
+}
+
+.ship-image {
+  width: 80%;
+  max-width: 300px;
+  max-height: 300px;
+  height: auto;
+  object-fit: contain;
+}
+
+.ship-name {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 150%;
+  text-align: center;
+  color: #d7b877;
+}
+.ship-description {
+  font-family: "Inter";
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 150%;
+  text-align: center;
+
+  color: #5e5e5e;
+}

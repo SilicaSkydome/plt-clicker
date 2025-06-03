@@ -16,6 +16,7 @@ import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { Task, TaskData, UserData, Referal, Rank } from "./Interfaces";
 import useSession from "./api/UseSession"; // Путь к файлу useSession.ts
 import SessionBlocked from "./components/Common/SessionBlocked/SessionBlocked"; // Путь к файлу SessionBlocked.tsx
+import Store from "./pages/Store/Store";
 
 // Определяем тип для window.env
 declare global {
@@ -258,6 +259,12 @@ const AppContent = ({
               tasks={tasks}
               setTasks={setTasks}
             />
+          }
+        />
+        <Route
+          path="/store"
+          element={
+            <Store user={user} setUser={setUser} telegramUserId={user.id} />
           }
         />
       </Routes>
