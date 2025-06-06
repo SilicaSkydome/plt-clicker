@@ -102,10 +102,14 @@ class MapScene extends Phaser.Scene {
 
   create() {
     locations.forEach((loc) => {
-      this.add.image(loc.x, loc.y, loc.image).setScale(1).setInteractive({
-        useHandCursor: true,
-        pixelPerfect: true,
-      }) as Phaser.GameObjects.Image;
+      this.add
+        .image(loc.x, loc.y, loc.image)
+        .setScale(1)
+        .setTint(loc.unlocked ? 0xffaf00 : 0xffffff)
+        .setInteractive({
+          useHandCursor: true,
+          pixelPerfect: true,
+        }) as Phaser.GameObjects.Image;
       this.add.image(loc.x, loc.y, "anchor").setScale(0.2);
       this.add
         .text(loc.x - 50, loc.y + 30, loc.name, {
