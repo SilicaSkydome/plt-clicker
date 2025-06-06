@@ -65,6 +65,13 @@
   justify-content: end;
   align-items: center;
   gap: 5px;
+}
+.balanceInside {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
 
   cursor: pointer;
 }
@@ -248,10 +255,6 @@
   position: relative;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  background: #212324;
-  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-  border: 2px solid #d7b877;
 
   border-radius: 50%;
 

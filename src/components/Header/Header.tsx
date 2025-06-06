@@ -46,6 +46,9 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
   const handleStoreClick = () => {
     navigate("/store");
   };
+  const handleMapClick = () => {
+    navigate("/map");
+  };
 
   const handleBankClick = () => {
     setIsBankOpen(!isBankOpen);
@@ -82,8 +85,11 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
     <>
       <div className="header">
         <div className="headerRow">
-          <div className="profile" onClick={() => handleProfileClick()}>
-            <div className="profilePicture">
+          <div className="profile">
+            <div
+              className="profilePicture"
+              onClick={() => handleProfileClick()}
+            >
               <img src={user?.photoUrl} alt="avatar" />
             </div>
             <div className="storeButton" onClick={() => handleStoreClick()}>
@@ -91,7 +97,7 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
             </div>
           </div>
 
-          <div className="compass">
+          <div className="compass" onClick={() => handleMapClick()}>
             {user?.rank && (
               <ProgressBar
                 balance={balance}
@@ -100,13 +106,15 @@ function Header({ user, balance, ranks, setUser }: HeaderProps) {
               />
             )}
           </div>
-          <div className="balance" onClick={() => handleBankClick()}>
-            <div className="balanceImg">
-              <img src={Token} alt="" />
-            </div>
-            <div className="balanceContent">
-              Balance
-              <div className="balanceAmount">{formatBalance(balance)}</div>
+          <div className="balance">
+            <div className="balanceInside" onClick={() => handleBankClick()}>
+              <div className="balanceImg">
+                <img src={Token} alt="" />
+              </div>
+              <div className="balanceContent">
+                Balance
+                <div className="balanceAmount">{formatBalance(balance)}</div>
+              </div>
             </div>
           </div>
         </div>

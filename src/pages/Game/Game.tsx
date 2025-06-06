@@ -859,19 +859,6 @@ function Game({
       this.load.image("ship4", ship4);
       this.load.image("ship5", ship5);
       this.load.image("ship6", ship6);
-
-      // Логируем размеры текстур при загрузке
-      this.load.on(
-        "filecomplete",
-        (key: string, type: string, texture: any) => {
-          if (type === "image" && key.startsWith("ship")) {
-            const img = texture as HTMLImageElement;
-            console.log(
-              `Текстура ${key} загружена: ширина=${img.width}px, высота=${img.height}px`
-            );
-          }
-        }
-      );
     }
 
     function create(this: Phaser.Scene) {

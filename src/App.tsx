@@ -17,6 +17,7 @@ import { Task, TaskData, UserData, Referal, Rank } from "./Interfaces";
 import useSession from "./api/UseSession"; // Путь к файлу useSession.ts
 import SessionBlocked from "./components/Common/SessionBlocked/SessionBlocked"; // Путь к файлу SessionBlocked.tsx
 import Store from "./pages/Store/Store";
+import RoadMap from "./pages/Map/Map";
 
 // Определяем тип для window.env
 declare global {
@@ -267,6 +268,7 @@ const AppContent = ({
             <Store user={user} setUser={setUser} telegramUserId={user.id} />
           }
         />
+        <Route path="/map" element={<RoadMap />} />
       </Routes>
       <NavMenu />
     </div>
