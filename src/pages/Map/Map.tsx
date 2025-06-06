@@ -105,7 +105,7 @@ class MapScene extends Phaser.Scene {
       this.add
         .image(loc.x, loc.y, loc.image)
         .setScale(1)
-        .setTint(loc.unlocked ? 0xffaf00 : 0xffffff)
+        .setTint(loc.unlocked ? 0xffd57b : 0xffffff)
         .setInteractive({
           useHandCursor: true,
           pixelPerfect: true,
