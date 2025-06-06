@@ -103,7 +103,7 @@ class MapScene extends Phaser.Scene {
   create() {
     var scaleFator = 1;
     if (window.innerWidth < 400) {
-      scaleFator = 0.8; // Уменьшаем масштаб для маленьких экранов
+      scaleFator = 0.7; // Уменьшаем масштаб для маленьких экранов
     }
 
     locations.forEach((loc) => {
