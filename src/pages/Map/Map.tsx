@@ -117,8 +117,9 @@ class MapScene extends Phaser.Scene {
         .setInteractive({
           useHandCursor: true,
           pixelPerfect: true,
-        }) as Phaser.GameObjects.Image;
-      this.add.image(loc.x, loc.y, "anchor").setScale(0.2);
+        })
+        .setDepth(10) as Phaser.GameObjects.Image;
+      this.add.image(loc.x, loc.y * scaleFator, "anchor").setScale(scaleFator);
       this.add
         .text(loc.x - 50, (loc.y + 30) * scaleFator, loc.name, {
           fontSize: `${16 * scaleFator}px`,
@@ -126,7 +127,7 @@ class MapScene extends Phaser.Scene {
         .setOrigin(0.5);
     });
 
-    const graphics = this.add.graphics();
+    const graphics = this.add.graphics().setDepth(-1); // Устанавливаем глубину графики
     graphics.lineStyle(2, 0xffd900, 1); // Золотая линия толщиной 2 пикселя
 
     // Получаем центральные точки локаций
