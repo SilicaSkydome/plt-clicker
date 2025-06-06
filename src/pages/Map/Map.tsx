@@ -101,10 +101,18 @@ class MapScene extends Phaser.Scene {
   }
 
   create() {
+    var scaleFator = 1;
+    if (window.innerWidth < 400) {
+      scaleFator = 0.8; // Уменьшаем масштаб для маленьких экранов
+    }
+
     locations.forEach((loc) => {
+      if (window.innerHeight < 600) {
+        loc.y = loc.y * scaleFator; // Уменьшаем высоту для мобильных устройств
+      }
       this.add
-        .image(loc.x, loc.y, loc.image)
-        .setScale(1)
+        .image(loc.x, loc.y * scaleFator, loc.image)
+        .setScale(scaleFator)
         .setTint(loc.unlocked ? 0xffd57b : 0xffffff)
         .setInteractive({
           useHandCursor: true,
@@ -112,8 +120,8 @@ class MapScene extends Phaser.Scene {
         }) as Phaser.GameObjects.Image;
       this.add.image(loc.x, loc.y, "anchor").setScale(0.2);
       this.add
-        .text(loc.x - 50, loc.y + 30, loc.name, {
-          fontSize: "16px",
+        .text(loc.x - 50, (loc.y + 30) * scaleFator, loc.name, {
+          fontSize: `${16 * scaleFator}px`,
         })
         .setOrigin(0.5);
     });
@@ -123,7 +131,7 @@ class MapScene extends Phaser.Scene {
 
     // Получаем центральные точки локаций
     const points = locations.map(
-      (loc) => new Phaser.Math.Vector2(loc.x, loc.y)
+      (loc) => new Phaser.Math.Vector2(loc.x, loc.y * scaleFator)
     );
 
     // Рисуем изогнутые пунктирные линии между соседними точками
