@@ -106,11 +106,12 @@ class MapScene extends Phaser.Scene {
       scaleFator = 0.7; // Уменьшаем масштаб для маленьких экранов
     }
 
+    const seaImages: Phaser.GameObjects.Image[] = [];
     locations.forEach((loc) => {
       if (window.innerHeight < 600) {
         loc.y = loc.y * scaleFator; // Уменьшаем высоту для мобильных устройств
       }
-      this.add
+      const sea = this.add
         .image(loc.x, loc.y * scaleFator, loc.image)
         .setScale(scaleFator)
         .setTint(loc.unlocked ? 0xffd57b : 0xffffff)
@@ -119,6 +120,7 @@ class MapScene extends Phaser.Scene {
           pixelPerfect: true,
         })
         .setDepth(10) as Phaser.GameObjects.Image;
+      seaImages.push(sea);
       this.add.image(loc.x, loc.y * scaleFator, "anchor").setScale(scaleFator);
       this.add
         .text(loc.x - 50, (loc.y + 30) * scaleFator, loc.name, {
@@ -176,15 +178,27 @@ class MapScene extends Phaser.Scene {
 
       graphics.strokePath(); // Рисуем весь путь одним вызовом
     }
+
+    // Механика активного моря
+    seaImages.forEach((sea, index) => {
+      sea.on("pointerdown", () => {
+        // Сбрасываем цвет всех морей
+        seaImages.forEach((img) => {
+          const loc = locations.find((l) => l.image === img.texture.key);
+          img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+        });
+        // Устанавливаем активный цвет для выбранного моря
+        sea.setTint(0x00ff00); // Зеленый цвет для активного моря
+        this.events.emit("locationSelected", locations[index].id);
+      });
+    });
   }
 }
 
 function RoadMap() {
   const [baseWidth, setBaseWidth] = useState(window.innerWidth - 60);
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(
-    null
-  );
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
   useEffect(() => {
     const config: Phaser.Types.Core.GameConfig = {
@@ -194,6 +208,13 @@ function RoadMap() {
       parent: "phaser-container",
       scene: MapScene,
       backgroundColor: "#212324",
+      callbacks: {
+        postBoot: (game) => {
+          game.events.on("locationSelected", (locationId: string) => {
+            setSelectedLocation(locationId);
+          });
+        },
+      },
     };
     const game = new Phaser.Game(config);
     return () => game.destroy(true);
@@ -205,6 +226,7 @@ function RoadMap() {
       <div className="map-container" id="map-container">
         <div id="phaser-container"></div>
       </div>
+      {selectedLocation && <p>Выбрано море: {selectedLocation}</p>}
     </div>
   );
 }
