@@ -189,6 +189,7 @@ class MapScene extends Phaser.Scene {
         });
         // Устанавливаем активный цвет для выбранного моря
         sea.setTint(0x00ff00); // Зеленый цвет для активного моря
+
         this.events.emit("locationSelected", locations[index].id);
       });
     });
