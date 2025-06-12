@@ -174,6 +174,7 @@ const testUser: UserData = {
   energy: 50,
   lastEnergyUpdate: Date.now(),
   selectedShip: "ship1", // Устанавливаем корабль по умолчанию
+  Location: "1stSea", // Устанавливаем начальную локацию
 };
 
 interface AppContentProps {
@@ -268,7 +269,10 @@ const AppContent = ({
             <Store user={user} setUser={setUser} telegramUserId={user.id} />
           }
         />
-        <Route path="/map" element={<RoadMap />} />
+        <Route
+          path="/map"
+          element={<RoadMap user={user} setUser={setUser} />}
+        />
       </Routes>
       <NavMenu />
     </div>
@@ -289,6 +293,7 @@ function App() {
     energy: 50,
     lastEnergyUpdate: Date.now(),
     selectedShip: "ship1", // Устанавливаем корабль по умолчанию
+    Location: "1stSea", // Устанавливаем начальную локацию
   });
   const { isSessionBlocked } = useSession(user.id); // Добавляем хук
   const [isLoading, setIsLoading] = useState(true);
@@ -375,6 +380,8 @@ function App() {
             rank: determineRank(1000),
             energy: 50,
             lastEnergyUpdate: Date.now(),
+            selectedShip: "ship1", // Устанавливаем корабль по умолчанию
+            Location: "1stSea", // Устанавливаем начальную локацию
           };
           isTestUser = true;
         } else {
@@ -402,6 +409,8 @@ function App() {
                 rank: RANKS[0],
                 energy: 50,
                 lastEnergyUpdate: Date.now(),
+                selectedShip: "ship1", // Устанавливаем корабль по умолчанию
+                Location: "1stSea", // Устанавливаем начальную локацию
               };
             }
           }
@@ -525,6 +534,8 @@ function App() {
           rank: RANKS[0],
           energy: 50,
           lastEnergyUpdate: Date.now(),
+          selectedShip: "ship1", // Устанавливаем корабль по умолчанию
+          Location: "1stSea", // Устанавливаем начальную локацию
         };
         await setDoc(userDocRef, newUser);
         setBalance(0);
@@ -592,6 +603,8 @@ function App() {
           rank: RANKS[0],
           energy: 50,
           lastEnergyUpdate: Date.now(),
+          selectedShip: "ship1", // Устанавливаем корабль по умолчанию
+          Location: "1stSea", // Устанавливаем начальную локацию
         };
         await setDoc(referrerRef, newReferrer);
       }

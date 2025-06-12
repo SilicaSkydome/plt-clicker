@@ -47,6 +47,7 @@ export interface UserData {
   energy: number;
   lastEnergyUpdate: number;
   selectedShip?: string; // Добавляем поле для выбранного корабля
+  Location: string;
 }
 
 export interface Location {
