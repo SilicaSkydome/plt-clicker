@@ -47,16 +47,5 @@ export interface UserData {
   energy: number;
   lastEnergyUpdate: number;
   selectedShip?: string; // Добавляем поле для выбранного корабля
-  Location: string;
-}
-
-export interface Location {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  unlocked: boolean;
-  cost: number;
-  minRank: number;
-  image: string;
+  location: string;
 }

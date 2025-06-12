@@ -226,7 +226,7 @@ function RoadMap({ user, setUser }: MapProps) {
             setSelectedLocation(locationId);
             setUser({
               ...user,
-              Location: locationId,
+              location: locationId,
             });
           });
         },
