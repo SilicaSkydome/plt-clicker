@@ -10,6 +10,8 @@ import sea5 from "../../assets/img/Seas/Sea5.png";
 import sea6 from "../../assets/img/Seas/Sea6.png";
 import sea7 from "../../assets/img/Seas/Sea7.png";
 import anchor from "../../assets/img/anchor.png";
+import { db } from "../../../firebaseConfig"; // Импортируем db из firebaseConfig
+import { doc, setDoc } from "firebase/firestore";
 
 const locations: Location[] = [
   {
@@ -235,6 +237,9 @@ function RoadMap({ user, setUser }: MapProps) {
     return () => {
       if (gameRef.current) {
         gameRef.current.events.off("locationSelected");
+        updateLocation().then(() =>
+          console.log("Location updated in Firestore")
+        );
       }
       game.destroy(true);
     };
@@ -260,6 +265,14 @@ function RoadMap({ user, setUser }: MapProps) {
       window.removeEventListener("resize", handleResize);
     };
   }, []);
+
+  const updateLocation = async () => {
+    const userDocRef = doc(db, "userData", user.id);
+    await setDoc(userDocRef, {
+      ...user,
+      location: selectedLocation,
+    });
+  };
 
   return (
     <div className="map">
