@@ -10,7 +10,6 @@ import sea5 from "../../assets/img/Seas/Sea5.png";
 import sea6 from "../../assets/img/Seas/Sea6.png";
 import sea7 from "../../assets/img/Seas/Sea7.png";
 import anchor from "../../assets/img/anchor.png";
-import { use } from "matter";
 
 const locations: Location[] = [
   {
@@ -97,7 +96,7 @@ function RoadMap({ user, setUser }: MapProps) {
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(
     user.Location || "1stSea"
-  ); // Устанавливаем начальное значение из user.Location
+  );
   const gameRef = useRef<Phaser.Game | null>(null);
 
   class MapScene extends Phaser.Scene {
@@ -117,19 +116,16 @@ function RoadMap({ user, setUser }: MapProps) {
     }
 
     create() {
-      var scaleFator = 1;
-      if (window.innerWidth < 400) {
-        scaleFator = 0.7; // Уменьшаем масштаб для маленьких экранов
-      }
+      const scaleFactor = window.innerWidth < 400 ? 0.7 : 1;
 
       const seaImages: Phaser.GameObjects.Image[] = [];
       locations.forEach((loc) => {
-        if (window.innerHeight < 600) {
-          loc.y = loc.y * scaleFator; // Уменьшаем высоту для мобильных устройств
-        }
+        // Используем копию y для масштабирования, не меняя оригинал
+        const adjustedY =
+          window.innerHeight < 600 ? loc.y * scaleFactor : loc.y;
         const sea = this.add
-          .image(loc.x, loc.y * scaleFator, loc.image)
-          .setScale(scaleFator)
+          .image(loc.x, adjustedY, loc.image)
+          .setScale(scaleFactor)
           .setTint(loc.unlocked ? 0xffd57b : 0xffffff)
           .setInteractive({
             useHandCursor: true,
@@ -137,82 +133,78 @@ function RoadMap({ user, setUser }: MapProps) {
           })
           .setDepth(10) as Phaser.GameObjects.Image;
         seaImages.push(sea);
+        this.add.image(loc.x, adjustedY, "anchor").setScale(scaleFactor);
         this.add
-          .image(loc.x, loc.y * scaleFator, "anchor")
-          .setScale(scaleFator);
-        this.add
-          .text(loc.x - 50, (loc.y + 30) * scaleFator, loc.name, {
-            fontSize: `${16 * scaleFator}px`,
+          .text(loc.x - 50, adjustedY + 30 * scaleFactor, loc.name, {
+            fontSize: `${16 * scaleFactor}px`,
           })
           .setOrigin(0.5);
       });
 
-      const graphics = this.add.graphics().setDepth(-1); // Устанавливаем глубину графики
-      graphics.lineStyle(2, 0xffd900, 1); // Золотая линия толщиной 2 пикселя
+      const graphics = this.add.graphics().setDepth(-1);
+      graphics.lineStyle(2, 0xffd900, 1);
 
-      // Получаем центральные точки локаций
-      const points = locations.map(
-        (loc) => new Phaser.Math.Vector2(loc.x, loc.y * scaleFator)
-      );
+      const points = locations.map((loc) => {
+        const adjustedY =
+          window.innerHeight < 600 ? loc.y * scaleFactor : loc.y;
+        return new Phaser.Math.Vector2(loc.x, adjustedY);
+      });
 
-      // Рисуем изогнутые пунктирные линии между соседними точками
       for (let i = 0; i < points.length - 1; i++) {
         const start = points[i];
         const end = points[i + 1];
-
-        // Фиксированное смещение для контрольной точки (единообразная кривизна)
         const control = new Phaser.Math.Vector2(
           (start.x + end.x) / 2,
-          (start.y + end.y) / 2 - 50 // Фиксированное смещение 50 пикселей
+          (start.y + end.y) / 2 - 50
         );
 
-        // Создаем квадратичную кривую
         const curve = new Phaser.Curves.QuadraticBezier(start, control, end);
         const curveLength = curve.getLength();
 
-        // Настраиваем пунктир с фиксированной длиной
-        const dashLength = 5; // Фиксированная длина черты
-        const gapLength = 10; // Фиксированная длина промежутка
-        const segmentLength = dashLength + gapLength; // Длина полного сегмента (черта + промежуток)
+        const dashLength = 5;
+        const gapLength = 10;
+        const segmentLength = dashLength + gapLength;
         let distance = 0;
 
-        graphics.beginPath(); // Начинаем путь для всей кривой
+        graphics.beginPath();
 
         while (distance < curveLength) {
-          const t1 = distance / curveLength; // Начало сегмента
+          const t1 = distance / curveLength;
           const dashEnd = Math.min(distance + dashLength, curveLength);
-          const t2 = dashEnd / curveLength; // Конец черты
+          const t2 = dashEnd / curveLength;
 
           const p1 = curve.getPoint(t1);
           const p2 = curve.getPoint(t2);
 
-          // Рисуем черту
           graphics.moveTo(p1.x, p1.y);
           graphics.lineTo(p2.x, p2.y);
 
-          // Переходим к следующему сегменту (черта + промежуток)
           distance += segmentLength;
         }
 
-        graphics.strokePath(); // Рисуем весь путь одним вызовом
+        graphics.strokePath();
       }
 
       // Механика активного моря
       seaImages.forEach((sea, index) => {
         sea.on("pointerdown", () => {
-          console.log("Selected location:", locations[index].id); // Отладка
-          // Сбрасываем цвет всех морей
+          console.log("Selected location:", locations[index].id);
           seaImages.forEach((img) => {
             const loc = locations.find((l) => l.image === img.texture.key);
             img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
           });
-          // Устанавливаем активный цвет для выбранного моря
-          sea.setTint(0x00ff00); // Зеленый цвет для активного моря
-
-          // Передаем событие в React через game.events
+          sea.setTint(0x00ff00);
           this.game.events.emit("locationSelected", locations[index].id);
         });
       });
+
+      // Инициализация активного моря
+      const initialIndex = locations.findIndex(
+        (loc) => loc.id === selectedLocation
+      );
+      if (initialIndex !== -1) {
+        seaImages[initialIndex].setTint(0x00ff00);
+      }
     }
   }
 
@@ -228,7 +220,7 @@ function RoadMap({ user, setUser }: MapProps) {
         postBoot: (game) => {
           gameRef.current = game;
           game.events.on("locationSelected", (locationId: string) => {
-            console.log("Received location:", locationId); // Отладка
+            console.log("Received location:", locationId);
             setSelectedLocation(locationId);
             setUser({
               ...user,
@@ -239,29 +231,35 @@ function RoadMap({ user, setUser }: MapProps) {
       },
     };
     const game = new Phaser.Game(config);
-    console.log(user); // Отладка
+    console.log(user);
     return () => {
       if (gameRef.current) {
         gameRef.current.events.off("locationSelected");
       }
       game.destroy(true);
     };
-  }, [user, setUser]); // Добавляем зависимости
+  }, [user, setUser]);
 
   useEffect(() => {
     const handleResize = () => {
-      setBaseWidth(window.innerWidth - 60);
-      setBaseHeight(window.innerHeight - 200);
+      const newWidth =
+        window.innerWidth - 60 > 400 ? 400 : window.innerWidth - 60;
+      const newHeight = window.innerHeight - 200;
+      setBaseWidth(newWidth);
+      setBaseHeight(newHeight);
       if (gameRef.current) {
-        gameRef.current.scale.resize(baseWidth, baseHeight);
+        gameRef.current.scale.resize(newWidth, newHeight);
+        // Перезапуск сцены для корректного отображения
+        gameRef.current.scene.start("MapScene");
       }
     };
 
     window.addEventListener("resize", handleResize);
+    handleResize(); // Вызываем сразу для инициализации
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [baseWidth, baseHeight]);
+  }, []);
 
   return (
     <div className="map">
