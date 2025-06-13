@@ -12,6 +12,7 @@ import sea7 from "../../assets/img/Seas/Sea7.png";
 import anchor from "../../assets/img/anchor.png";
 import { db } from "../../../firebaseConfig"; // Импортируем db из firebaseConfig
 import { doc, setDoc } from "firebase/firestore";
+import { use } from "matter";
 
 const locations: Location[] = [
   {
@@ -97,7 +98,7 @@ function RoadMap({ user, setUser }: MapProps) {
   );
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(
-    user.Location || "1stSea"
+    user.location || "1stSea"
   );
   const gameRef = useRef<Phaser.Game | null>(null);
 
@@ -211,6 +212,13 @@ function RoadMap({ user, setUser }: MapProps) {
   }
 
   useEffect(() => {
+    setSelectedLocation(user.location || "1stSea");
+    if (gameRef.current) {
+      gameRef.current.scene.start("MapScene");
+    }
+  }, []);
+
+  useEffect(() => {
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
       width: baseWidth,
@@ -233,13 +241,10 @@ function RoadMap({ user, setUser }: MapProps) {
       },
     };
     const game = new Phaser.Game(config);
-    console.log(user);
     return () => {
       if (gameRef.current) {
         gameRef.current.events.off("locationSelected");
-        updateLocation().then(() =>
-          console.log("Location updated in Firestore")
-        );
+        updateLocation();
       }
       game.destroy(true);
     };

@@ -49,3 +49,13 @@ export interface UserData {
   selectedShip?: string; // Добавляем поле для выбранного корабля
   location: string;
 }
+export interface Location {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  unlocked: boolean;
+  cost: number;
+  minRank: number;
+  image: string;
+}
