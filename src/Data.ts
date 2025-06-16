@@ -1,10 +1,10 @@
 import { Location, Rank, Task, UserData } from "./Interfaces";
-import ship1 from "../../assets/img/ship.webp";
-import ship2 from "../../assets/img/ship2.png";
-import ship3 from "../../assets/img/ship3.png";
-import ship4 from "../../assets/img/ship4.png";
-import ship5 from "../../assets/img/ship5.png";
-import ship6 from "../../assets/img/ship6.png";
+import ship1 from "./assets/img/ship.webp";
+import ship2 from "./assets/img/ship2.png";
+import ship3 from "./assets/img/ship3.png";
+import ship4 from "./assets/img/ship4.png";
+import ship5 from "./assets/img/ship5.png";
+import ship6 from "./assets/img/ship6.png";
 
 const locations: Location[] = [
   {
