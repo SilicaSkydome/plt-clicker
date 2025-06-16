@@ -280,7 +280,6 @@ function App() {
                 selectedShip: "ship1", // Устанавливаем корабль по умолчанию
                 location: "1stSea", // Устанавливаем начальную локацию
               };
-              setLocation(userData.location || "1stSea");
             }
           }
         }
@@ -372,6 +371,7 @@ function App() {
       if (userDoc.exists()) {
         const userDataFromDb = userDoc.data() as UserData;
         setBalance(userDataFromDb.balance || 0);
+        setLocation(userDataFromDb.location || "1stSea");
 
         const storedEnergy = userDataFromDb.energy ?? 50;
         const storedLastUpdate = userDataFromDb.lastEnergyUpdate ?? Date.now();
