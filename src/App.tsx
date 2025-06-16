@@ -488,6 +488,15 @@ function App() {
   }, [user.id]);
 
   const getUserData = async (userData: UserData) => {
+    if (!userData.id || userData.id === "test_user_123") {
+      console.log("Тестовый пользователь, данные не загружаются");
+      setBalance(0);
+      setInitialEnergy(50);
+      setInitialLastEnergyUpdate(Date.now());
+      setCurrentRank(RANKS[0]);
+      setTasks(initialTasks);
+      return;
+    }
     try {
       const userDocRef = doc(db, "userData", userData.id);
       const userDoc = await getDoc(userDocRef);
@@ -556,6 +565,16 @@ function App() {
 
   const handleReferral = async (newUserId: string, referrerId: string) => {
     if (newUserId === referrerId) {
+      return;
+    }
+    if (!referrerId || referrerId === "test_user_123") {
+      console.log("Реферал не установлен или это тестовый пользователь");
+      return;
+    }
+    if (!newUserId || newUserId === "test_user_123") {
+      console.log(
+        "Новый пользователь не установлен или это тестовый пользователь"
+      );
       return;
     }
 
