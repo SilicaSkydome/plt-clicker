@@ -96,24 +96,71 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
     window.innerWidth - 60 > 400 ? 400 : window.innerWidth - 60
   );
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(
+    initialUser.location || "1stSea"
+  );
   const [loadedUser, setLoadedUser] = useState<UserData | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
 
-  // Загрузка данных из Firebase при монтировании
+  // Инициализация игры сразу
+  useEffect(() => {
+    const config: Phaser.Types.Core.GameConfig = {
+      type: Phaser.AUTO,
+      width: baseWidth,
+      height: baseHeight,
+      parent: "phaser-container",
+      scene: MapScene,
+      backgroundColor: "#212324",
+      callbacks: {
+        postBoot: (game) => {
+          gameRef.current = game;
+          console.log("Game initialized");
+        },
+      },
+    };
+    const game = new Phaser.Game(config);
+    return () => {
+      if (gameRef.current) {
+        gameRef.current.events.off("locationSelected");
+      }
+      game.destroy(true);
+    };
+  }, [baseWidth, baseHeight]); // Зависимости только от размеров
+
+  // Загрузка данных из Firebase
   useEffect(() => {
     const loadUserData = async () => {
       try {
+        console.log("Loading user data for ID:", initialUser.id);
         const userDocRef = doc(db, "userData", initialUser.id);
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data() as UserData;
+          console.log("Loaded user data:", data);
           setLoadedUser(data);
           setSelectedLocation(data.location || "1stSea");
-          setUser(data); // Обновляем родительский state
+          setUser(data);
+          // Обновляем сцену после загрузки данных
+          if (sceneRef.current && gameRef.current) {
+            const seaImages = sceneRef.current.children.list.filter(
+              (obj) =>
+                obj instanceof Phaser.GameObjects.Image &&
+                obj.texture.key.startsWith("sea")
+            ) as Phaser.GameObjects.Image[];
+            const newIndex = locations.findIndex(
+              (loc) => loc.id === data.location
+            );
+            if (newIndex !== -1) {
+              seaImages.forEach((img) => {
+                const loc = locations.find((l) => l.image === img.texture.key);
+                img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+              });
+              seaImages[newIndex].setTint(0x00ff00);
+            }
+          }
         } else {
-          console.log("No such document!");
+          console.log("No such document, using initial user:", initialUser);
           setLoadedUser(initialUser);
           setSelectedLocation(initialUser.location || "1stSea");
           setUser(initialUser);
@@ -127,6 +174,63 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
     };
     loadUserData();
   }, [initialUser, setUser]);
+
+  // Обработчик изменения selectedLocation
+  useEffect(() => {
+    if (sceneRef.current && gameRef.current && selectedLocation) {
+      const seaImages = sceneRef.current.children.list.filter(
+        (obj) =>
+          obj instanceof Phaser.GameObjects.Image &&
+          obj.texture.key.startsWith("sea")
+      ) as Phaser.GameObjects.Image[];
+      const newIndex = locations.findIndex(
+        (loc) => loc.id === selectedLocation
+      );
+      if (newIndex !== -1) {
+        seaImages.forEach((img) => {
+          const loc = locations.find((l) => l.image === img.texture.key);
+          img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+        });
+        seaImages[newIndex].setTint(0x00ff00);
+      }
+    }
+    if (loadedUser && selectedLocation) {
+      const newUser = { ...loadedUser, location: selectedLocation };
+      setUser(newUser);
+      updateLocation(newUser);
+    }
+  }, [selectedLocation, loadedUser, setUser]);
+
+  // Обработчик изменения размеров
+  useEffect(() => {
+    const handleResize = () => {
+      const newWidth =
+        window.innerWidth - 60 > 400 ? 400 : window.innerWidth - 60;
+      const newHeight = window.innerHeight - 200;
+      setBaseWidth(newWidth);
+      setBaseHeight(newHeight);
+      if (gameRef.current) {
+        gameRef.current.scale.resize(newWidth, newHeight);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Вызываем сразу для инициализации
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // Обновление Firebase
+  const updateLocation = async (newUser: UserData) => {
+    try {
+      const userDocRef = doc(db, "userData", initialUser.id);
+      await setDoc(userDocRef, newUser, { merge: true });
+      console.log("Firebase updated with location:", newUser.location);
+    } catch (error) {
+      console.error("Error updating Firebase:", error);
+    }
+  };
 
   class MapScene extends Phaser.Scene {
     constructor() {
@@ -237,83 +341,6 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
       });
     }
   }
-
-  useEffect(() => {
-    const config: Phaser.Types.Core.GameConfig = {
-      type: Phaser.AUTO,
-      width: baseWidth,
-      height: baseHeight,
-      parent: "phaser-container",
-      scene: MapScene,
-      backgroundColor: "#212324",
-      callbacks: {
-        postBoot: (game) => {
-          gameRef.current = game;
-          game.events.on("locationSelected", async (locationId: string) => {
-            console.log("Received location:", locationId);
-            setSelectedLocation(locationId);
-            const newUser = {
-              ...(loadedUser || initialUser),
-              location: locationId,
-            };
-            setUser(newUser);
-            try {
-              const userDocRef = doc(db, "userData", initialUser.id);
-              await setDoc(userDocRef, newUser, { merge: true });
-              console.log("Firebase updated with location:", locationId);
-            } catch (error) {
-              console.error("Error updating Firebase:", error);
-            }
-            if (sceneRef.current) {
-              const seaImages = sceneRef.current.children.list.filter(
-                (obj) =>
-                  obj instanceof Phaser.GameObjects.Image &&
-                  obj.texture.key.startsWith("sea")
-              ) as Phaser.GameObjects.Image[];
-              const newIndex = locations.findIndex(
-                (loc) => loc.id === locationId
-              );
-              if (newIndex !== -1) {
-                seaImages.forEach((img) => {
-                  const loc = locations.find(
-                    (l) => l.image === img.texture.key
-                  );
-                  img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
-                });
-                seaImages[newIndex].setTint(0x00ff00);
-              }
-            }
-          });
-        },
-      },
-    };
-    const game = new Phaser.Game(config);
-    return () => {
-      if (gameRef.current) {
-        gameRef.current.events.off("locationSelected");
-      }
-      game.destroy(true);
-    };
-  }, [loadedUser, initialUser]); // Зависимости для обновления сцены после загрузки данных
-
-  useEffect(() => {
-    const handleResize = () => {
-      const newWidth =
-        window.innerWidth - 60 > 400 ? 400 : window.innerWidth - 60;
-      const newHeight = window.innerHeight - 200;
-      setBaseWidth(newWidth);
-      setBaseHeight(newHeight);
-      if (gameRef.current) {
-        gameRef.current.scale.resize(newWidth, newHeight);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    handleResize(); // Вызываем сразу для инициализации
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
 
   return (
     <div className="map">
