@@ -116,6 +116,36 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
         postBoot: (game) => {
           gameRef.current = game;
           console.log("Game initialized");
+          game.events.on("locationSelected", (locationId: string) => {
+            console.log("Attempting to select location:", locationId);
+            setSelectedLocation(locationId);
+            const newUser = {
+              ...(loadedUser || initialUser),
+              location: locationId,
+            };
+            setUser(newUser);
+            updateLocation(newUser);
+            // Обновляем активное море в сцене
+            if (sceneRef.current) {
+              const seaImages = sceneRef.current.children.list.filter(
+                (obj) =>
+                  obj instanceof Phaser.GameObjects.Image &&
+                  obj.texture.key.startsWith("sea")
+              ) as Phaser.GameObjects.Image[];
+              const newIndex = locations.findIndex(
+                (loc) => loc.id === locationId
+              );
+              if (newIndex !== -1) {
+                seaImages.forEach((img) => {
+                  const loc = locations.find(
+                    (l) => l.image === img.texture.key
+                  );
+                  img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+                });
+                seaImages[newIndex].setTint(0x00ff00);
+              }
+            }
+          });
         },
       },
     };
@@ -142,7 +172,7 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
           setSelectedLocation(data.location || "1stSea");
           setUser(data);
           // Обновляем сцену после загрузки данных
-          if (sceneRef.current && gameRef.current) {
+          if (sceneRef.current) {
             const seaImages = sceneRef.current.children.list.filter(
               (obj) =>
                 obj instanceof Phaser.GameObjects.Image &&
@@ -174,32 +204,6 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
     };
     loadUserData();
   }, [initialUser, setUser]);
-
-  // Обработчик изменения selectedLocation
-  useEffect(() => {
-    if (sceneRef.current && gameRef.current && selectedLocation) {
-      const seaImages = sceneRef.current.children.list.filter(
-        (obj) =>
-          obj instanceof Phaser.GameObjects.Image &&
-          obj.texture.key.startsWith("sea")
-      ) as Phaser.GameObjects.Image[];
-      const newIndex = locations.findIndex(
-        (loc) => loc.id === selectedLocation
-      );
-      if (newIndex !== -1) {
-        seaImages.forEach((img) => {
-          const loc = locations.find((l) => l.image === img.texture.key);
-          img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
-        });
-        seaImages[newIndex].setTint(0x00ff00);
-      }
-    }
-    if (loadedUser && selectedLocation) {
-      const newUser = { ...loadedUser, location: selectedLocation };
-      setUser(newUser);
-      updateLocation(newUser);
-    }
-  }, [selectedLocation, loadedUser, setUser]);
 
   // Обработчик изменения размеров
   useEffect(() => {
