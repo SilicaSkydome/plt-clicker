@@ -97,7 +97,7 @@ function RoadMap({ user, setUser }: MapProps) {
   );
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(
-    user.location || "1stSea"
+    user.location
   );
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
