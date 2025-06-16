@@ -85,8 +85,8 @@ const locations: Location[] = [
 ];
 
 interface MapProps {
-  location?: string;
-  setLocation?: (location: string) => void;
+  location: string;
+  setLocation: (location: string) => void;
 }
 
 function RoadMap({ location, setLocation }: MapProps) {
@@ -94,9 +94,6 @@ function RoadMap({ location, setLocation }: MapProps) {
     window.innerWidth - 60 > 400 ? 400 : window.innerWidth - 60
   );
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(
-    location || "1stSea"
-  );
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
 
@@ -114,7 +111,7 @@ function RoadMap({ location, setLocation }: MapProps) {
           gameRef.current = game;
           console.log("Game initialized");
           game.events.on("locationSelected", (locationId: string) => {
-            setSelectedLocation(locationId);
+            setLocation(locationId);
             if (setLocation) {
               setLocation(locationId);
             }
@@ -153,25 +150,23 @@ function RoadMap({ location, setLocation }: MapProps) {
 
   // Синхронизация с пропсом location
   useEffect(() => {
-    if (location && location !== selectedLocation) {
-      setSelectedLocation(location);
-      if (sceneRef.current) {
-        const seaImages = sceneRef.current.children.list.filter(
-          (obj) =>
-            obj instanceof Phaser.GameObjects.Image &&
-            obj.texture.key.startsWith("sea")
-        ) as Phaser.GameObjects.Image[];
-        const newIndex = locations.findIndex((loc) => loc.id === location);
-        if (newIndex !== -1) {
-          seaImages.forEach((img) => {
-            const loc = locations.find((l) => l.image === img.texture.key);
-            img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
-          });
-          seaImages[newIndex].setTint(0x00ff00);
-        }
+    setLocation(location);
+    if (sceneRef.current) {
+      const seaImages = sceneRef.current.children.list.filter(
+        (obj) =>
+          obj instanceof Phaser.GameObjects.Image &&
+          obj.texture.key.startsWith("sea")
+      ) as Phaser.GameObjects.Image[];
+      const newIndex = locations.findIndex((loc) => loc.id === location);
+      if (newIndex !== -1) {
+        seaImages.forEach((img) => {
+          const loc = locations.find((l) => l.image === img.texture.key);
+          img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+        });
+        seaImages[newIndex].setTint(0x00ff00);
       }
     }
-  }, [location, selectedLocation]);
+  }, [location]);
 
   // Обработчик изменения размеров
   useEffect(() => {
@@ -281,7 +276,7 @@ function RoadMap({ location, setLocation }: MapProps) {
 
       // Механика активного моря внутри сцены
       let activeSeaIndex: number | null = locations.findIndex(
-        (loc) => loc.id === selectedLocation
+        (loc) => loc.id === location
       );
       if (activeSeaIndex !== -1) {
         seaImages[activeSeaIndex].setTint(0x00ff00);
@@ -309,7 +304,7 @@ function RoadMap({ location, setLocation }: MapProps) {
       <div className="map-container" id="map-container">
         <div id="phaser-container"></div>
       </div>
-      {selectedLocation && <p>Выбрано море: {selectedLocation}</p>}
+      {location && <p>Выбрано море: {location}</p>}
     </div>
   );
 }

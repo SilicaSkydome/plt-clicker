@@ -191,7 +191,7 @@ interface AppContentProps {
   maxEnergy: number;
   setUser: React.Dispatch<React.SetStateAction<UserData>>;
   setLocation: React.Dispatch<React.SetStateAction<string>>;
-  location?: string;
+  location: string;
 }
 
 const AppContent = ({
