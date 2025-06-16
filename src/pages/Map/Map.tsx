@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./Map.css";
 import Phaser from "phaser";
-import { Location, UserData } from "../../Interfaces";
+import { Location } from "../../Interfaces";
 import sea1 from "../../assets/img/Seas/Sea1.png";
 import sea2 from "../../assets/img/Seas/Sea2.png";
 import sea3 from "../../assets/img/Seas/Sea3.png";
@@ -10,8 +10,6 @@ import sea5 from "../../assets/img/Seas/Sea5.png";
 import sea6 from "../../assets/img/Seas/Sea6.png";
 import sea7 from "../../assets/img/Seas/Sea7.png";
 import anchor from "../../assets/img/anchor.png";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "../../../firebaseConfig";
 
 const locations: Location[] = [
   {
@@ -87,23 +85,22 @@ const locations: Location[] = [
 ];
 
 interface MapProps {
-  user: UserData;
-  setUser: (user: UserData) => void;
+  location?: string;
+  setLocation?: (location: string) => void;
 }
 
-function RoadMap({ user: initialUser, setUser }: MapProps) {
+function RoadMap({ location, setLocation }: MapProps) {
   const [baseWidth, setBaseWidth] = useState(
     window.innerWidth - 60 > 400 ? 400 : window.innerWidth - 60
   );
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(
-    initialUser.location || "1stSea"
+    location || "1stSea"
   );
-  const [loadedUser, setLoadedUser] = useState<UserData | null>(initialUser); // Инициализируем с initialUser
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
 
-  // Инициализация игры сразу
+  // Инициализация игры
   useEffect(() => {
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
@@ -115,15 +112,12 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
       callbacks: {
         postBoot: (game) => {
           gameRef.current = game;
-
+          console.log("Game initialized");
           game.events.on("locationSelected", (locationId: string) => {
             setSelectedLocation(locationId);
-            const newUser = {
-              ...loadedUser,
-              location: locationId,
-            } as UserData;
-            setUser(newUser);
-            updateLocation(newUser);
+            if (setLocation) {
+              setLocation(locationId);
+            }
             // Обновляем активное море в сцене
             if (sceneRef.current) {
               const seaImages = sceneRef.current.children.list.filter(
@@ -157,52 +151,27 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
     };
   }, [baseWidth, baseHeight]);
 
-  // Загрузка данных из Firebase
+  // Синхронизация с пропсом location
   useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        console.log("Loading user data for ID:", initialUser.id);
-        const userDocRef = doc(db, "userData", initialUser.id);
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data() as UserData;
-          console.log("Loaded user data:", data);
-          setLoadedUser(data);
-          setSelectedLocation(data.location || "1stSea");
-          setUser(data); // Сохраняем все поля, включая balance
-          // Обновляем сцену после загрузки данных
-          if (sceneRef.current) {
-            const seaImages = sceneRef.current.children.list.filter(
-              (obj) =>
-                obj instanceof Phaser.GameObjects.Image &&
-                obj.texture.key.startsWith("sea")
-            ) as Phaser.GameObjects.Image[];
-            const newIndex = locations.findIndex(
-              (loc) => loc.id === data.location
-            );
-            if (newIndex !== -1) {
-              seaImages.forEach((img) => {
-                const loc = locations.find((l) => l.image === img.texture.key);
-                img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
-              });
-              seaImages[newIndex].setTint(0x00ff00);
-            }
-          }
-        } else {
-          console.log("No such document, using initial user:", initialUser);
-          setLoadedUser(initialUser);
-          setSelectedLocation(initialUser.location || "1stSea");
-          setUser(initialUser);
+    if (location && location !== selectedLocation) {
+      setSelectedLocation(location);
+      if (sceneRef.current) {
+        const seaImages = sceneRef.current.children.list.filter(
+          (obj) =>
+            obj instanceof Phaser.GameObjects.Image &&
+            obj.texture.key.startsWith("sea")
+        ) as Phaser.GameObjects.Image[];
+        const newIndex = locations.findIndex((loc) => loc.id === location);
+        if (newIndex !== -1) {
+          seaImages.forEach((img) => {
+            const loc = locations.find((l) => l.image === img.texture.key);
+            img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+          });
+          seaImages[newIndex].setTint(0x00ff00);
         }
-      } catch (error) {
-        console.error("Error loading user data:", error);
-        setLoadedUser(initialUser);
-        setSelectedLocation(initialUser.location || "1stSea");
-        setUser(initialUser);
       }
-    };
-    loadUserData();
-  }, [initialUser, setUser]);
+    }
+  }, [location, selectedLocation]);
 
   // Обработчик изменения размеров
   useEffect(() => {
@@ -218,27 +187,11 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
     };
 
     window.addEventListener("resize", handleResize);
-    handleResize(); // Вызываем сразу для инициализации
+    handleResize();
     return () => {
       window.removeEventListener("resize", handleResize);
     };
   }, []);
-
-  // Обновление Firebase
-  const updateLocation = async (newUser: UserData) => {
-    try {
-      const userDocRef = doc(db, "userData", initialUser.id);
-      await setDoc(userDocRef, newUser, { merge: true });
-      console.log(
-        "Firebase updated with location:",
-        newUser.location,
-        "and balance:",
-        newUser.balance
-      );
-    } catch (error) {
-      console.error("Error updating Firebase:", error);
-    }
-  };
 
   class MapScene extends Phaser.Scene {
     constructor() {
@@ -357,7 +310,6 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
         <div id="phaser-container"></div>
       </div>
       {selectedLocation && <p>Выбрано море: {selectedLocation}</p>}
-      {loadedUser && <p>Баланс: {loadedUser.balance}</p>}
     </div>
   );
 }

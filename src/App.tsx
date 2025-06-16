@@ -190,6 +190,8 @@ interface AppContentProps {
   saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
   maxEnergy: number;
   setUser: React.Dispatch<React.SetStateAction<UserData>>;
+  setLocation: React.Dispatch<React.SetStateAction<string>>;
+  location?: string;
 }
 
 const AppContent = ({
@@ -205,8 +207,10 @@ const AppContent = ({
   saveEnergy,
   maxEnergy,
   setUser,
+  setLocation,
+  location,
 }: AppContentProps) => {
-  const location = useLocation();
+  const currentLocation = useLocation();
   const [isNight, setIsNight] = useState(isNightTime());
 
   useEffect(() => {
@@ -217,7 +221,7 @@ const AppContent = ({
   }, []);
 
   const getBackgroundClass = () => {
-    switch (location.pathname) {
+    switch (currentLocation.pathname) {
       case "/":
         return isNight ? "game-bg-night" : "game-bg";
       default:
@@ -271,7 +275,7 @@ const AppContent = ({
         />
         <Route
           path="/map"
-          element={<RoadMap user={user} setUser={setUser} />}
+          element={<RoadMap location={location} setLocation={setLocation} />}
         />
       </Routes>
       <NavMenu />
@@ -298,6 +302,7 @@ function App() {
   const { isSessionBlocked } = useSession(user.id); // Добавляем хук
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalanceState] = useState<number>(0);
+  const [location, setLocation] = useState<string>("1stSea");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentRank, setCurrentRank] = useState<Rank>(RANKS[0]);
   const [initialEnergy, setInitialEnergy] = useState<number>(50);
@@ -692,6 +697,20 @@ function App() {
     prevDataRef.current = { balance, tasks, currentRank };
   }, [balance, tasks, currentRank]);
 
+  useEffect(() => {
+    if (!user.id || user.id === "test_user_123") return;
+    const updateLocationInDb = async () => {
+      try {
+        const userDocRef = doc(db, "userData", user.id);
+        await setDoc(userDocRef, { location }, { merge: true });
+        setUser((prev) => ({ ...prev, location }));
+      } catch (error) {
+        console.error("Ошибка при обновлении локации пользователя:", error);
+      }
+    };
+    updateLocationInDb();
+  }, [location]);
+
   return (
     <>
       {isSessionBlocked ? (
@@ -711,6 +730,8 @@ function App() {
             saveEnergy={saveEnergy}
             maxEnergy={maxEnergy}
             setUser={setUser}
+            location={location}
+            setLocation={setLocation}
           />
         </Router>
       )}
