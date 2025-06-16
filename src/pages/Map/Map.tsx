@@ -99,7 +99,7 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(
     initialUser.location || "1stSea"
   );
-  const [loadedUser, setLoadedUser] = useState<UserData | null>(null);
+  const [loadedUser, setLoadedUser] = useState<UserData | null>(initialUser); // Инициализируем с initialUser
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
 
@@ -156,7 +156,7 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
       }
       game.destroy(true);
     };
-  }, [baseWidth, baseHeight]); // Зависимости только от размеров
+  }, [baseWidth, baseHeight]);
 
   // Загрузка данных из Firebase
   useEffect(() => {
@@ -170,7 +170,7 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
           console.log("Loaded user data:", data);
           setLoadedUser(data);
           setSelectedLocation(data.location || "1stSea");
-          setUser(data);
+          setUser(data); // Сохраняем все поля, включая balance
           // Обновляем сцену после загрузки данных
           if (sceneRef.current) {
             const seaImages = sceneRef.current.children.list.filter(
@@ -230,7 +230,12 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
     try {
       const userDocRef = doc(db, "userData", initialUser.id);
       await setDoc(userDocRef, newUser, { merge: true });
-      console.log("Firebase updated with location:", newUser.location);
+      console.log(
+        "Firebase updated with location:",
+        newUser.location,
+        "and balance:",
+        newUser.balance
+      );
     } catch (error) {
       console.error("Error updating Firebase:", error);
     }
@@ -353,6 +358,7 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
         <div id="phaser-container"></div>
       </div>
       {selectedLocation && <p>Выбрано море: {selectedLocation}</p>}
+      {loadedUser && <p>Баланс: {loadedUser.balance}</p>}
     </div>
   );
 }
