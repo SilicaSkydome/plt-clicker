@@ -10,7 +10,7 @@ import sea5 from "../../assets/img/Seas/Sea5.png";
 import sea6 from "../../assets/img/Seas/Sea6.png";
 import sea7 from "../../assets/img/Seas/Sea7.png";
 import anchor from "../../assets/img/anchor.png";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
 const locations: Location[] = [
@@ -91,16 +91,42 @@ interface MapProps {
   setUser: (user: UserData) => void;
 }
 
-function RoadMap({ user, setUser }: MapProps) {
+function RoadMap({ user: initialUser, setUser }: MapProps) {
   const [baseWidth, setBaseWidth] = useState(
     window.innerWidth - 60 > 400 ? 400 : window.innerWidth - 60
   );
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(
-    user.location
-  );
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [loadedUser, setLoadedUser] = useState<UserData | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
+
+  // Загрузка данных из Firebase при монтировании
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const userDocRef = doc(db, "userData", initialUser.id);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data() as UserData;
+          setLoadedUser(data);
+          setSelectedLocation(data.location || "1stSea");
+          setUser(data); // Обновляем родительский state
+        } else {
+          console.log("No such document!");
+          setLoadedUser(initialUser);
+          setSelectedLocation(initialUser.location || "1stSea");
+          setUser(initialUser);
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        setLoadedUser(initialUser);
+        setSelectedLocation(initialUser.location || "1stSea");
+        setUser(initialUser);
+      }
+    };
+    loadUserData();
+  }, [initialUser, setUser]);
 
   class MapScene extends Phaser.Scene {
     constructor() {
@@ -226,17 +252,18 @@ function RoadMap({ user, setUser }: MapProps) {
           game.events.on("locationSelected", async (locationId: string) => {
             console.log("Received location:", locationId);
             setSelectedLocation(locationId);
-            const newUser = { ...user, location: locationId };
+            const newUser = {
+              ...(loadedUser || initialUser),
+              location: locationId,
+            };
             setUser(newUser);
-            // Обновляем Firebase
             try {
-              const userDocRef = doc(db, "userData", user.id);
+              const userDocRef = doc(db, "userData", initialUser.id);
               await setDoc(userDocRef, newUser, { merge: true });
               console.log("Firebase updated with location:", locationId);
             } catch (error) {
               console.error("Error updating Firebase:", error);
             }
-            // Обновляем активное море в сцене
             if (sceneRef.current) {
               const seaImages = sceneRef.current.children.list.filter(
                 (obj) =>
@@ -267,7 +294,7 @@ function RoadMap({ user, setUser }: MapProps) {
       }
       game.destroy(true);
     };
-  }, []); // Пустой массив зависимостей для единственной инициализации
+  }, [loadedUser, initialUser]); // Зависимости для обновления сцены после загрузки данных
 
   useEffect(() => {
     const handleResize = () => {
