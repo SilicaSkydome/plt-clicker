@@ -97,24 +97,34 @@ function RoadMap({ location, setLocation }: MapProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
 
-  // Инициализация игры
+  // Инициализация игры с передачей начального location через sceneConfig
   useEffect(() => {
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
       width: baseWidth,
       height: baseHeight,
       parent: "phaser-container",
-      scene: MapScene,
+      scene: [
+        {
+          key: "MapScene",
+          init: function (this: Phaser.Scene) {
+            // Инициализация сцены с переданным значением
+            const initialLocation =
+              this.registry.get("initialLocation") || location;
+            this.data.set("initialLocation", initialLocation);
+          },
+          create: MapScene.prototype.create,
+          preload: MapScene.prototype.preload,
+        },
+      ],
       backgroundColor: "#212324",
       callbacks: {
         postBoot: (game) => {
           gameRef.current = game;
-          console.log("Game initialized");
+          console.log("Game initialized with location:", location);
           game.events.on("locationSelected", (locationId: string) => {
+            console.log("Attempting to select location:", locationId);
             setLocation(locationId);
-            if (setLocation) {
-              setLocation(locationId);
-            }
             // Обновляем активное море в сцене
             if (sceneRef.current) {
               const seaImages = sceneRef.current.children.list.filter(
@@ -146,25 +156,23 @@ function RoadMap({ location, setLocation }: MapProps) {
       }
       game.destroy(true);
     };
-  }, [baseWidth, baseHeight]);
+  }, [baseWidth, baseHeight, location]);
 
   // Синхронизация с пропсом location
   useEffect(() => {
-    if (location) {
-      if (sceneRef.current) {
-        const seaImages = sceneRef.current.children.list.filter(
-          (obj) =>
-            obj instanceof Phaser.GameObjects.Image &&
-            obj.texture.key.startsWith("sea")
-        ) as Phaser.GameObjects.Image[];
-        const newIndex = locations.findIndex((loc) => loc.id === location);
-        if (newIndex !== -1) {
-          seaImages.forEach((img) => {
-            const loc = locations.find((l) => l.image === img.texture.key);
-            img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
-          });
-          seaImages[newIndex].setTint(0x00ff00);
-        }
+    if (sceneRef.current) {
+      const seaImages = sceneRef.current.children.list.filter(
+        (obj) =>
+          obj instanceof Phaser.GameObjects.Image &&
+          obj.texture.key.startsWith("sea")
+      ) as Phaser.GameObjects.Image[];
+      const newIndex = locations.findIndex((loc) => loc.id === location);
+      if (newIndex !== -1) {
+        seaImages.forEach((img) => {
+          const loc = locations.find((l) => l.image === img.texture.key);
+          img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+        });
+        seaImages[newIndex].setTint(0x00ff00);
       }
     }
   }, [location]);
@@ -275,9 +283,10 @@ function RoadMap({ location, setLocation }: MapProps) {
         graphics.strokePath();
       }
 
-      // Механика активного моря внутри сцены
+      // Устанавливаем начальное выделение на основе переданного location
+      const initialLocation = this.data.get("initialLocation");
       let activeSeaIndex: number | null = locations.findIndex(
-        (loc) => loc.id === location
+        (loc) => loc.id === initialLocation
       );
       if (activeSeaIndex !== -1) {
         seaImages[activeSeaIndex].setTint(0x00ff00);
