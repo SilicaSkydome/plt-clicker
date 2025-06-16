@@ -150,20 +150,21 @@ function RoadMap({ location, setLocation }: MapProps) {
 
   // Синхронизация с пропсом location
   useEffect(() => {
-    setLocation(location);
-    if (sceneRef.current) {
-      const seaImages = sceneRef.current.children.list.filter(
-        (obj) =>
-          obj instanceof Phaser.GameObjects.Image &&
-          obj.texture.key.startsWith("sea")
-      ) as Phaser.GameObjects.Image[];
-      const newIndex = locations.findIndex((loc) => loc.id === location);
-      if (newIndex !== -1) {
-        seaImages.forEach((img) => {
-          const loc = locations.find((l) => l.image === img.texture.key);
-          img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
-        });
-        seaImages[newIndex].setTint(0x00ff00);
+    if (location) {
+      if (sceneRef.current) {
+        const seaImages = sceneRef.current.children.list.filter(
+          (obj) =>
+            obj instanceof Phaser.GameObjects.Image &&
+            obj.texture.key.startsWith("sea")
+        ) as Phaser.GameObjects.Image[];
+        const newIndex = locations.findIndex((loc) => loc.id === location);
+        if (newIndex !== -1) {
+          seaImages.forEach((img) => {
+            const loc = locations.find((l) => l.image === img.texture.key);
+            img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+          });
+          seaImages[newIndex].setTint(0x00ff00);
+        }
       }
     }
   }, [location]);
