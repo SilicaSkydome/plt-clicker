@@ -5,15 +5,7 @@ import "./Stats.css";
 import top1 from "../../assets/img/top-1.png";
 import top2 from "../../assets/img/top-2.png";
 import top3 from "../../assets/img/top-3.png";
-import { Rank } from "../../Interfaces";
-
-interface playerRank {
-  rank: number;
-  title: string;
-  name: string;
-  balance: number;
-  avatar: string;
-}
+import { playerRank, Rank } from "../../Interfaces";
 
 function Stats() {
   const [players, setPlayers] = useState<playerRank[]>([]);

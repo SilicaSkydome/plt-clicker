@@ -23,36 +23,14 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { Rank, UserData } from "../../Interfaces";
+import {
+  ChestData,
+  ClickEvent,
+  GameProps,
+  Rank,
+  UserData,
+} from "../../Interfaces";
 import Header from "../../components/Header/Header";
-
-interface GameProps {
-  user: UserData;
-  balance: number;
-  setBalance: React.Dispatch<React.SetStateAction<number>>;
-  currentRank: Rank;
-  ranks: Array<Rank>;
-  initialEnergy: number;
-  initialLastEnergyUpdate: number;
-  saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
-  maxEnergy: number;
-  setUser: React.Dispatch<React.SetStateAction<UserData>>;
-}
-
-interface ChestData {
-  x: number;
-  y: number;
-  id: number;
-  lastSpawnTime: number | null;
-  userId: string;
-}
-
-interface ClickEvent {
-  type: "boat" | "chest";
-  points: number;
-  chestId?: number;
-  energyAtClick?: number;
-}
 
 function Game({
   user,

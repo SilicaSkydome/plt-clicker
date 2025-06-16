@@ -13,11 +13,20 @@ import Earn from "./pages/Earn/Earn";
 import NavMenu from "./components/NavMenu/NavMenu";
 import { db } from "../firebaseConfig";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
-import { Task, TaskData, UserData, Referal, Rank } from "./Interfaces";
+import {
+  Task,
+  TaskData,
+  UserData,
+  Referal,
+  Rank,
+  AppContentProps,
+} from "./Interfaces";
 import useSession from "./api/UseSession"; // Путь к файлу useSession.ts
 import SessionBlocked from "./components/Common/SessionBlocked/SessionBlocked"; // Путь к файлу SessionBlocked.tsx
 import Store from "./pages/Store/Store";
 import RoadMap from "./pages/Map/Map";
+import { initialTasks, RANKS } from "./Data";
+import { set } from "lodash";
 
 // Определяем тип для window.env
 declare global {
@@ -27,121 +36,6 @@ declare global {
     };
   }
 }
-
-// Определяем ранги
-const RANKS: Rank[] = [
-  {
-    title: "Cabin Boy",
-    pirateTitle: "Cabin Boy",
-    goldMin: 0,
-    goldMax: 999,
-    clickBonus: 0,
-    goldPerClick: 0.035,
-    level: 1,
-    estimatedDays: 0,
-  },
-  {
-    title: "Sailor",
-    pirateTitle: "Sailor Saltbeard",
-    goldMin: 1000,
-    goldMax: 4999,
-    clickBonus: 0.03,
-    goldPerClick: 0.065,
-    level: 1,
-    estimatedDays: 3.3,
-  },
-  {
-    title: "Quartermaster",
-    pirateTitle: "Quartermaster Hookhand",
-    goldMin: 5000,
-    goldMax: 9999,
-    clickBonus: 0.06,
-    goldPerClick: 0.095,
-    level: 3,
-    estimatedDays: 10.4,
-  },
-  {
-    title: "First Mate",
-    pirateTitle: "First Mate Deadeye",
-    goldMin: 10000,
-    goldMax: 29999,
-    clickBonus: 0.09,
-    goldPerClick: 0.125,
-    level: 5,
-    estimatedDays: 15.9,
-  },
-  {
-    title: "Captain",
-    pirateTitle: "Captain Blackbeard",
-    goldMin: 30000,
-    goldMax: null,
-    clickBonus: 0.12,
-    goldPerClick: 0.195,
-    level: 15,
-    estimatedDays: 31.9,
-  },
-];
-
-// Определяем начальный список задач
-const initialTasks: Task[] = [
-  {
-    icon: "./assets/Quest1.png",
-    title: "Subscribe to Telegram",
-    description: "+50 PLGold",
-    button: "",
-    points: 50,
-    completed: false,
-    action: (balance: number, setBalance: (value: number) => void) => {
-      //@ts-ignore
-      if (window.Telegram?.WebApp) {
-        //@ts-ignore
-        window.Telegram.WebApp.openLink("https://t.me/PirateLife1721");
-      } else {
-        window.open("https://t.me/PirateLife1721", "_blank");
-      }
-      return true;
-    },
-  },
-  {
-    icon: "./assets/Quest2.png",
-    title: "Invite 5 friends",
-    description: "+250 PLGold",
-    button: "",
-    points: 250,
-    completed: false,
-    action: (
-      balance: number,
-      setBalance: (value: number) => void,
-      user: UserData | null,
-      navigate: (path: string) => void
-    ) => {
-      if (user) {
-        if (user.referals && user.referals?.length < 5) {
-          navigate("/invite");
-          return false;
-        } else if (user.referals && user.referals?.length >= 5) {
-          return true;
-        } else {
-          navigate("/invite");
-          return false;
-        }
-      }
-      return false;
-    },
-  },
-  {
-    icon: "./assets/Quest3.png",
-    title: "Join instagram",
-    description: "+50 PLGold",
-    button: "",
-    points: 50,
-    completed: false,
-    action: (balance: number, setBalance: (value: number) => void) => {
-      window.open("https://www.instagram.com/piratelife_official/", "_blank");
-      return true;
-    },
-  },
-];
 
 // Функция для определения текущего ранга на основе баланса
 const determineRank = (gold: number): Rank => {
@@ -176,23 +70,6 @@ const testUser: UserData = {
   selectedShip: "ship1", // Устанавливаем корабль по умолчанию
   location: "1stSea", // Устанавливаем начальную локацию
 };
-
-interface AppContentProps {
-  user: UserData;
-  isLoading: boolean;
-  balance: number;
-  setBalance: React.Dispatch<React.SetStateAction<number>>;
-  tasks: Task[];
-  setTasks: (tasks: Task[]) => void;
-  currentRank: Rank;
-  initialEnergy: number;
-  initialLastEnergyUpdate: number;
-  saveEnergy: (newEnergy: number, updateTime: number) => Promise<void>;
-  maxEnergy: number;
-  setUser: React.Dispatch<React.SetStateAction<UserData>>;
-  setLocation: React.Dispatch<React.SetStateAction<string>>;
-  location: string;
-}
 
 const AppContent = ({
   user,
@@ -373,21 +250,7 @@ function App() {
         let isTestUser = false;
 
         if (isTestMode) {
-          userData = {
-            id: "test_user_123",
-            firstName: "Test",
-            username: "testuser",
-            lastInteraction: new Date().toISOString(),
-            photoUrl: "https://placehold.co/40",
-            balance: 1000,
-            tasks: [],
-            referals: [{ id: "test_referral_1" }, { id: "test_referral_2" }],
-            rank: determineRank(1000),
-            energy: 50,
-            lastEnergyUpdate: Date.now(),
-            selectedShip: "ship1", // Устанавливаем корабль по умолчанию
-            location: "1stSea", // Устанавливаем начальную локацию
-          };
+          userData = testUser;
           isTestUser = true;
         } else {
           const app = (window as any).Telegram?.WebApp;
@@ -417,6 +280,7 @@ function App() {
                 selectedShip: "ship1", // Устанавливаем корабль по умолчанию
                 location: "1stSea", // Устанавливаем начальную локацию
               };
+              setLocation(userData.location || "1stSea");
             }
           }
         }

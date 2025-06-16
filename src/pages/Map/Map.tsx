@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./Map.css";
 import Phaser from "phaser";
-import { Location } from "../../Interfaces";
+import { MapProps } from "../../Interfaces";
+import { locations } from "../../Data";
 import sea1 from "../../assets/img/Seas/Sea1.png";
 import sea2 from "../../assets/img/Seas/Sea2.png";
 import sea3 from "../../assets/img/Seas/Sea3.png";
@@ -10,84 +11,6 @@ import sea5 from "../../assets/img/Seas/Sea5.png";
 import sea6 from "../../assets/img/Seas/Sea6.png";
 import sea7 from "../../assets/img/Seas/Sea7.png";
 import anchor from "../../assets/img/anchor.png";
-
-const locations: Location[] = [
-  {
-    id: "1stSea",
-    name: "1-ST SEA",
-    x: 100,
-    y: 100,
-    unlocked: true,
-    cost: 0,
-    minRank: 1,
-    image: "sea1",
-  },
-  {
-    id: "2ndSea",
-    name: "2-ST SEA",
-    x: 420 - 130,
-    y: 130,
-    unlocked: false,
-    cost: 50,
-    minRank: 2,
-    image: "sea2",
-  },
-  {
-    id: "3rdSea",
-    name: "3-RD SEA",
-    x: 420 - 130,
-    y: 280,
-    unlocked: false,
-    cost: 100,
-    minRank: 3,
-    image: "sea3",
-  },
-  {
-    id: "4thSea",
-    name: "4-TH SEA",
-    x: 70,
-    y: 370,
-    unlocked: false,
-    cost: 150,
-    minRank: 4,
-    image: "sea4",
-  },
-  {
-    id: "5thSea",
-    name: "5-TH SEA",
-    x: 420 - 170,
-    y: 400,
-    unlocked: false,
-    cost: 200,
-    minRank: 5,
-    image: "sea5",
-  },
-  {
-    id: "6thSea",
-    name: "6-TH SEA",
-    x: 100,
-    y: 520,
-    unlocked: false,
-    cost: 250,
-    minRank: 6,
-    image: "sea6",
-  },
-  {
-    id: "7thSea",
-    name: "7-TH SEA",
-    x: 420 - 130,
-    y: 550,
-    unlocked: false,
-    cost: 300,
-    minRank: 7,
-    image: "sea7",
-  },
-];
-
-interface MapProps {
-  location: string;
-  setLocation: (location: string) => void;
-}
 
 function RoadMap({ location, setLocation }: MapProps) {
   const [baseWidth, setBaseWidth] = useState(

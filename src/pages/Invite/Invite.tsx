@@ -1,19 +1,14 @@
 import "./Invite.css";
 import React, { useState, useEffect } from "react";
-import { UserData, Referal, Rank } from "../../Interfaces";
+import {
+  UserData,
+  Referal,
+  Rank,
+  FriendData,
+  InviteProps,
+} from "../../Interfaces";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
-
-interface InviteProps {
-  user: UserData;
-}
-
-interface FriendData {
-  id: string;
-  name: string;
-  photoUrl?: string | null;
-  rank?: Rank | null;
-}
 
 function Invite({ user }: InviteProps) {
   const [referrals, setReferrals] = useState<Referal[]>([]);

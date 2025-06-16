@@ -1,13 +1,7 @@
 import React from "react";
 import "./ProgressBar.css";
-import { Rank } from "../../../Interfaces"; // Импортируем интерфейс Rank
+import { ProgressBarProps, Rank } from "../../../Interfaces"; // Импортируем интерфейс Rank
 import Compass from "../../../assets/img/Compass.svg"; // Импортируем изображение компаса
-
-interface ProgressBarProps {
-  balance: number; // Текущий баланс игрока
-  currentRank: Rank; // Текущий ранг игрока
-  ranks: Rank[]; // Массив всех рангов
-}
 
 function ProgressBar({ balance, currentRank, ranks }: ProgressBarProps) {
   // Находим индекс текущего ранга в массиве ranks

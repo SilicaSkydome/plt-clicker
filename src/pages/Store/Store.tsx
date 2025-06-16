@@ -1,72 +1,10 @@
 import React from "react";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
-import { UserData } from "../../Interfaces";
-import ship1 from "../../assets/img/ship.webp";
-import ship2 from "../../assets/img/ship2.png";
-import ship3 from "../../assets/img/ship3.png";
-import ship4 from "../../assets/img/ship4.png";
-import ship5 from "../../assets/img/ship5.png";
-import ship6 from "../../assets/img/ship6.png";
+import { StoreProps, UserData } from "../../Interfaces";
+import { ships } from "../../Data";
 import "./Store.css";
 import { useNavigate } from "react-router-dom";
-
-interface StoreProps {
-  user: UserData;
-  setUser: React.Dispatch<React.SetStateAction<UserData>>;
-  telegramUserId: string;
-}
-
-const ships = [
-  {
-    id: "ship1",
-    image: ship1,
-    name: "Default",
-    description: "Default ship",
-    condition: "Available for all users",
-    price: 0,
-  },
-  {
-    id: "ship2",
-    image: ship2,
-    name: "Schooner",
-    description: "A two-masted ship with both square and fore-and-aft sails",
-    condition: "Available for all users",
-    price: 0,
-  },
-  {
-    id: "ship3",
-    image: ship3,
-    name: "Brig",
-    description: "A two-masted vessel with square sails on both masts",
-    condition: "Available for all users",
-    price: 0,
-  },
-  {
-    id: "ship4",
-    image: ship4,
-    name: "Fregate",
-    description: "A multi-purpose warship, typically with three masts",
-    condition: "Available for all users",
-    price: 0,
-  },
-  {
-    id: "ship5",
-    image: ship5,
-    name: "Bark",
-    description: "A vessel with masts rigged with diagonally placed sails",
-    condition: "Available for all users",
-    price: 0,
-  },
-  {
-    id: "ship6",
-    image: ship6,
-    name: "Galleon",
-    description: "A large sailing ship used primarily for trade and war",
-    condition: "Available for all users",
-    price: 0,
-  },
-];
 
 const Store: React.FC<StoreProps> = ({ user, setUser, telegramUserId }) => {
   const navigate = useNavigate();

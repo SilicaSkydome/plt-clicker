@@ -3,7 +3,7 @@ import "./Header.css";
 import Logo from "../../assets/Logo.png";
 import Token from "../../assets/img/TOKEN.svg";
 import { useClickAway } from "@uidotdev/usehooks";
-import { Rank, UserData } from "../../Interfaces";
+import { HeaderProps, Rank, UserData } from "../../Interfaces";
 import ProgressBar from "../Common/ProgressBar/ProgressBar";
 import { db } from "../../../firebaseConfig";
 import { doc, updateDoc } from "firebase/firestore";
@@ -15,23 +15,6 @@ import ship5 from "../../assets/img/ship5.png";
 import ship6 from "../../assets/img/ship6.png";
 import Store from "../../assets/img/store.svg";
 import { useNavigate } from "react-router-dom";
-
-interface HeaderProps {
-  balance: number;
-  user: UserData | null;
-  ranks: Rank[];
-  setUser: React.Dispatch<React.SetStateAction<UserData>>;
-}
-
-// Список доступных кораблей
-const ships = [
-  { id: "ship1", name: "Default", image: ship1 },
-  { id: "ship2", name: "Schooner", image: ship2 },
-  { id: "ship3", name: "Brig", image: ship3 },
-  { id: "ship4", name: "Fregate", image: ship4 },
-  { id: "ship5", name: "Bark", image: ship5 },
-  { id: "ship6", name: "Galleon", image: ship6 },
-];
 
 function Header({ user, balance, ranks, setUser }: HeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);

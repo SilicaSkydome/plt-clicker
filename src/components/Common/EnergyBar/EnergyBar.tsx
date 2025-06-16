@@ -1,10 +1,6 @@
 import React from "react";
 import "./EnergyBar.css";
-
-interface EnergyBarProps {
-  currentEnergy: number;
-  maxEnergy: number;
-}
+import { EnergyBarProps } from "../../../Interfaces";
 
 function EnergyBar({ currentEnergy, maxEnergy }: EnergyBarProps) {
   const progress = Math.min((currentEnergy / maxEnergy) * 100, 100);

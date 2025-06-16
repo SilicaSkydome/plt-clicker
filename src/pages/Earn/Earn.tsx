@@ -1,17 +1,9 @@
 import React, { useEffect } from "react";
 import "./Earn.css";
 import { useNavigate } from "react-router-dom";
-import { Task, TaskData, UserData } from "../../Interfaces";
+import { EarnProps, Task, TaskData, UserData } from "../../Interfaces";
 import { db } from "../../../firebaseConfig";
 import { doc, updateDoc } from "firebase/firestore";
-
-interface EarnProps {
-  user: UserData;
-  balance: number;
-  setBalance: (balance: number) => void;
-  tasks: Task[];
-  setTasks: (tasks: Task[]) => void;
-}
 
 function Earn({ balance, setBalance, user, tasks, setTasks }: EarnProps) {
   const navigate = useNavigate();
