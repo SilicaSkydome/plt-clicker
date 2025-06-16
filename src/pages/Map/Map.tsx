@@ -115,14 +115,13 @@ function RoadMap({ user: initialUser, setUser }: MapProps) {
       callbacks: {
         postBoot: (game) => {
           gameRef.current = game;
-          console.log("Game initialized");
+
           game.events.on("locationSelected", (locationId: string) => {
-            console.log("Attempting to select location:", locationId);
             setSelectedLocation(locationId);
             const newUser = {
-              ...(loadedUser || initialUser),
+              ...loadedUser,
               location: locationId,
-            };
+            } as UserData;
             setUser(newUser);
             updateLocation(newUser);
             // Обновляем активное море в сцене
