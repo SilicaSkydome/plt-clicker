@@ -10,9 +10,8 @@ import sea5 from "../../assets/img/Seas/Sea5.png";
 import sea6 from "../../assets/img/Seas/Sea6.png";
 import sea7 from "../../assets/img/Seas/Sea7.png";
 import anchor from "../../assets/img/anchor.png";
-import { db } from "../../../firebaseConfig"; // Импортируем db из firebaseConfig
 import { doc, setDoc } from "firebase/firestore";
-import { use } from "matter";
+import { db } from "../../../firebaseConfig";
 
 const locations: Location[] = [
   {
@@ -101,6 +100,7 @@ function RoadMap({ user, setUser }: MapProps) {
     user.location || "1stSea"
   );
   const gameRef = useRef<Phaser.Game | null>(null);
+  const sceneRef = useRef<Phaser.Scene | null>(null);
 
   class MapScene extends Phaser.Scene {
     constructor() {
@@ -120,10 +120,10 @@ function RoadMap({ user, setUser }: MapProps) {
 
     create() {
       const scaleFactor = window.innerWidth < 400 ? 0.7 : 1;
+      sceneRef.current = this;
 
       const seaImages: Phaser.GameObjects.Image[] = [];
       locations.forEach((loc) => {
-        // Используем копию y для масштабирования, не меняя оригинал
         const adjustedY =
           window.innerHeight < 600 ? loc.y * scaleFactor : loc.y;
         const sea = this.add
@@ -188,7 +188,14 @@ function RoadMap({ user, setUser }: MapProps) {
         graphics.strokePath();
       }
 
-      // Механика активного моря
+      // Механика активного моря внутри сцены
+      let activeSeaIndex: number | null = locations.findIndex(
+        (loc) => loc.id === selectedLocation
+      );
+      if (activeSeaIndex !== -1) {
+        seaImages[activeSeaIndex].setTint(0x00ff00);
+      }
+
       seaImages.forEach((sea, index) => {
         sea.on("pointerdown", () => {
           console.log("Selected location:", locations[index].id);
@@ -197,26 +204,13 @@ function RoadMap({ user, setUser }: MapProps) {
             img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
           });
           sea.setTint(0x00ff00);
+          activeSeaIndex = index;
+
           this.game.events.emit("locationSelected", locations[index].id);
         });
       });
-
-      // Инициализация активного моря
-      const initialIndex = locations.findIndex(
-        (loc) => loc.id === selectedLocation
-      );
-      if (initialIndex !== -1) {
-        seaImages[initialIndex].setTint(0x00ff00);
-      }
     }
   }
-
-  useEffect(() => {
-    setSelectedLocation(user.location || "1stSea");
-    if (gameRef.current) {
-      gameRef.current.scene.start("MapScene");
-    }
-  }, []);
 
   useEffect(() => {
     const config: Phaser.Types.Core.GameConfig = {
@@ -236,6 +230,26 @@ function RoadMap({ user, setUser }: MapProps) {
               ...user,
               location: locationId,
             });
+            // Обновляем активное море в сцене без перезапуска
+            if (sceneRef.current) {
+              const seaImages = sceneRef.current.children.list.filter(
+                (obj) =>
+                  obj instanceof Phaser.GameObjects.Image &&
+                  obj.texture.key.startsWith("sea")
+              ) as Phaser.GameObjects.Image[];
+              const newIndex = locations.findIndex(
+                (loc) => loc.id === locationId
+              );
+              if (newIndex !== -1) {
+                seaImages.forEach((img) => {
+                  const loc = locations.find(
+                    (l) => l.image === img.texture.key
+                  );
+                  img.setTint(loc?.unlocked ? 0xffd57b : 0xffffff);
+                });
+                seaImages[newIndex].setTint(0x00ff00);
+              }
+            }
           });
         },
       },
@@ -244,11 +258,10 @@ function RoadMap({ user, setUser }: MapProps) {
     return () => {
       if (gameRef.current) {
         gameRef.current.events.off("locationSelected");
-        updateLocation();
       }
       game.destroy(true);
     };
-  }, [user, setUser]);
+  }, []); // Пустой массив зависимостей для единственной инициализации
 
   useEffect(() => {
     const handleResize = () => {
@@ -259,8 +272,6 @@ function RoadMap({ user, setUser }: MapProps) {
       setBaseHeight(newHeight);
       if (gameRef.current) {
         gameRef.current.scale.resize(newWidth, newHeight);
-        // Перезапуск сцены для корректного отображения
-        gameRef.current.scene.start("MapScene");
       }
     };
 
@@ -273,11 +284,19 @@ function RoadMap({ user, setUser }: MapProps) {
 
   const updateLocation = async () => {
     const userDocRef = doc(db, "userData", user.id);
-    await setDoc(userDocRef, {
-      ...user,
-      location: selectedLocation,
-    });
+    await setDoc(
+      userDocRef,
+      {
+        ...user,
+        location: selectedLocation,
+      },
+      { merge: true }
+    );
   };
+
+  useEffect(() => {
+    updateLocation();
+  }, [selectedLocation]);
 
   return (
     <div className="map">
