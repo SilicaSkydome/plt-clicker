@@ -223,14 +223,20 @@ function RoadMap({ user, setUser }: MapProps) {
       callbacks: {
         postBoot: (game) => {
           gameRef.current = game;
-          game.events.on("locationSelected", (locationId: string) => {
+          game.events.on("locationSelected", async (locationId: string) => {
             console.log("Received location:", locationId);
             setSelectedLocation(locationId);
-            setUser({
-              ...user,
-              location: locationId,
-            });
-            // Обновляем активное море в сцене без перезапуска
+            const newUser = { ...user, location: locationId };
+            setUser(newUser);
+            // Обновляем Firebase
+            try {
+              const userDocRef = doc(db, "userData", user.id);
+              await setDoc(userDocRef, newUser, { merge: true });
+              console.log("Firebase updated with location:", locationId);
+            } catch (error) {
+              console.error("Error updating Firebase:", error);
+            }
+            // Обновляем активное море в сцене
             if (sceneRef.current) {
               const seaImages = sceneRef.current.children.list.filter(
                 (obj) =>
@@ -281,22 +287,6 @@ function RoadMap({ user, setUser }: MapProps) {
       window.removeEventListener("resize", handleResize);
     };
   }, []);
-
-  const updateLocation = async () => {
-    const userDocRef = doc(db, "userData", user.id);
-    await setDoc(
-      userDocRef,
-      {
-        ...user,
-        location: selectedLocation,
-      },
-      { merge: true }
-    );
-  };
-
-  useEffect(() => {
-    updateLocation();
-  }, [selectedLocation]);
 
   return (
     <div className="map">
