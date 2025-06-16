@@ -96,6 +96,7 @@ function RoadMap({ location, setLocation }: MapProps) {
   const [baseHeight, setBaseHeight] = useState(window.innerHeight - 200);
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<Phaser.Scene | null>(null);
+  console.log("Current location:", location);
 
   // Инициализация игры с передачей начального location через sceneConfig
   useEffect(() => {
