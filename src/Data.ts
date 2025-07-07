@@ -1,10 +1,10 @@
 import { Location, Rank, Task, UserData } from "./Interfaces";
-import ship1 from "./assets/img/ship.webp";
-import ship2 from "./assets/img/ship2.png";
-import ship3 from "./assets/img/ship3.png";
-import ship4 from "./assets/img/ship4.png";
-import ship5 from "./assets/img/ship5.png";
-import ship6 from "./assets/img/ship6.png";
+import ship1 from "./assets/img/ships/ship1.png";
+import ship2 from "./assets/img/ships/ship2.png";
+import ship3 from "./assets/img/ships/ship3.png";
+import ship4 from "./assets/img/ships/ship4.png";
+import ship5 from "./assets/img/ships/ship5.png";
+import ship6 from "./assets/img/ships/ship6.png";
 
 const locations: Location[] = [
   {
@@ -131,7 +131,7 @@ const ships = [
 ];
 
 // Определяем ранги
-const RANKS: Rank[] = [
+const ranks: Rank[] = [
   {
     title: "Cabin Boy",
     pirateTitle: "Cabin Boy",
@@ -245,4 +245,4 @@ const initialTasks: Task[] = [
   },
 ];
 
-export { locations, ships, RANKS, initialTasks };
+export { locations, ships, ranks, initialTasks };

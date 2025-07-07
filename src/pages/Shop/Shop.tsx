@@ -1,12 +1,12 @@
 import React from "react";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
-import { StoreProps, UserData } from "../../Interfaces";
+import { ShopProps, UserData } from "../../Interfaces";
 import { ships } from "../../Data";
-import "./Store.css";
+import "./Shop.css";
 import { useNavigate } from "react-router-dom";
 
-const Store: React.FC<StoreProps> = ({ user, setUser, telegramUserId }) => {
+const Shop: React.FC<ShopProps> = ({ user, setUser, telegramUserId }) => {
   const navigate = useNavigate();
   const handleShipSelect = async (shipId: string) => {
     try {
@@ -57,4 +57,4 @@ const Store: React.FC<StoreProps> = ({ user, setUser, telegramUserId }) => {
   );
 };
 
-export default Store;
+export default Shop;

@@ -1,31 +1,34 @@
+// components/Common/ProgressBar/ProgressBar.tsx
 import React from "react";
+import { useAppSelector } from "../../../store";
+import { ranks } from "../../../Data";
 import "./ProgressBar.css";
-import { ProgressBarProps, Rank } from "../../../Interfaces"; // Импортируем интерфейс Rank
-import Compass from "../../../assets/img/Compass.svg"; // Импортируем изображение компаса
 
-function ProgressBar({ balance, currentRank, ranks }: ProgressBarProps) {
-  // Находим индекс текущего ранга в массиве ranks
-  const currentRankIndex = ranks.findIndex(
-    (rank) => rank.title === currentRank.title
-  );
+const ProgressBar = () => {
+  const balance = useAppSelector((state) => state.game.balance);
+  const currentRank = useAppSelector((state) => state.game.rank);
 
-  // Определяем следующий ранг и сколько золота осталось до него
-  const nextRank =
-    currentRankIndex < ranks.length - 1 ? ranks[currentRankIndex + 1] : null;
-  const goldToNextRank = nextRank ? nextRank.goldMin - balance : 0; // Сколько осталось до следующего ранга
+  const currentIndex = ranks.findIndex((r) => r.title === currentRank.title);
+  const nextRank = ranks[currentIndex + 1];
+  const progressPercent = nextRank?.goldMax
+    ? Math.min((balance / nextRank.goldMax) * 100, 100)
+    : 100;
 
   return (
-    <div className="progressBar">
-      <div className="compass">
-        <img src={Compass} alt="Compass" />
-        <div className="label">
-          next rank
-          <br />
-          <span>{nextRank ? goldToNextRank.toFixed(0) : ""}</span>
-        </div>
+    <div className="progressBarWrapper">
+      <div className="progressLabel">
+        {nextRank?.goldMax
+          ? `Next rank: ${nextRank.title} at ${nextRank.goldMax}`
+          : "Highest rank achieved!"}
+      </div>
+      <div className="progressBar">
+        <div
+          className="progressFill"
+          style={{ width: `${progressPercent}%` }}
+        />
       </div>
     </div>
   );
-}
+};
 
 export default ProgressBar;

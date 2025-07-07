@@ -1,71 +1,50 @@
-import React, { useEffect } from "react";
+// pages/Earn/Earn.tsx
+import React, { useEffect, useState } from "react";
+import { useAppSelector } from "../../store";
+import { Task, TaskData } from "../../Interfaces";
+import { initialTasks } from "../../Data";
+import { useEarnLogic } from "./useEarnLogic";
+import QuestCard from "./QuestCard";
 import "./Earn.css";
-import { useNavigate } from "react-router-dom";
-import { EarnProps, Task, TaskData, UserData } from "../../Interfaces";
-import { db } from "../../../firebaseConfig";
-import { doc, updateDoc } from "firebase/firestore";
 
-function Earn({ balance, setBalance, user, tasks, setTasks }: EarnProps) {
-  const navigate = useNavigate();
+const Earn: React.FC = () => {
+  const user = useAppSelector((state) => state.user.user);
+  const [taskDataList, setTaskDataList] = useState<TaskData[]>(
+    initialTasks.map(({ action, ...rest }) => ({ ...rest, completed: false }))
+  );
+  const [balance, setBalance] = useState<number>(user?.balance || 0);
 
-  const handleTaskClick = async (task: Task, index: number) => {
-    if (task.completed) return;
+  const enhancedTasks: Task[] = initialTasks.map((task) => {
+    const saved = taskDataList.find((t) => t.title === task.title);
+    return {
+      ...task,
+      completed: saved?.completed ?? false,
+    };
+  });
 
-    const shouldComplete = task.action(balance, setBalance, user, navigate);
-    if (shouldComplete) {
-      setBalance(parseFloat((balance + task.points).toFixed(2))); // Обновляем баланс пользователя
-      const updatedTasks = tasks.map((t: Task, i: number) =>
-        i === index ? { ...t, completed: true } : t
-      );
-      setTasks(updatedTasks);
-
-      // Обновляем задачи в Firestore
-      const tasksToSave = updatedTasks.map(({ action, ...rest }) => rest);
-      const userDocRef = doc(db, "userData", user.id);
-      try {
-        await updateDoc(userDocRef, {
-          tasks: tasksToSave,
-        });
-        console.log("Задачи обновлены в Firestore:", tasksToSave);
-      } catch (error) {
-        console.error("Ошибка при обновлении задач в Firestore:", error);
-      }
-    }
-  };
+  const { handleTaskClick } = useEarnLogic(
+    enhancedTasks,
+    setTaskDataList,
+    setBalance
+  );
 
   return (
     <div className="earnPage">
-      <div className="earnSection">
-        <h1>Earn</h1>
-        <h2>tasks available</h2>
-        <p>
-          We’ll reward you immediately with points after each task completion
-        </p>
-        <div className="quests">
-          {tasks.map((task, index) => (
-            <div key={index} className="quest">
-              <div className="questContent">
-                <div className="questIcon">
-                  <img src={task.icon} alt="icon" />
-                </div>
-                <div className="questInfo">
-                  <h3>{task.title}</h3>
-                  <p>{task.description}</p>
-                </div>
-              </div>
-              <button
-                className="questButton"
-                disabled={task.completed}
-                onClick={() => handleTaskClick(task, index)}
-              >
-                {task.completed ? "Completed" : `+${task.points} PLGold`}
-              </button>
-            </div>
+      <div className="earnPanel">
+        <h1>Quests</h1>
+        <p>Complete tasks to earn gold</p>
+        <div className="questsList">
+          {enhancedTasks.map((task) => (
+            <QuestCard
+              key={task.title}
+              task={task}
+              onClick={() => handleTaskClick(task)}
+            />
           ))}
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default Earn;

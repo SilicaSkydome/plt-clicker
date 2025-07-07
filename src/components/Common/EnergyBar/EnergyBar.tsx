@@ -1,17 +1,24 @@
+// components/Common/EnergyBar/EnergyBar.tsx
 import React from "react";
+import { useAppSelector } from "../../../store";
 import "./EnergyBar.css";
-import { EnergyBarProps } from "../../../Interfaces";
 
-function EnergyBar({ currentEnergy, maxEnergy }: EnergyBarProps) {
-  const progress = Math.min((currentEnergy / maxEnergy) * 100, 100);
+const EnergyBar = () => {
+  const energy = useAppSelector((state) => state.game.energy);
+  const maxEnergy = useAppSelector((state) => state.game.maxEnergy);
+
+  const percentage = (energy / maxEnergy) * 100;
 
   return (
-    <div className="energyBar">
-      <div className="energyBar-container">
-        <div className="energyBar-fill" style={{ width: `${progress}%` }} />
+    <div className="energyBarWrapper">
+      <div className="energyBar">
+        <div className="energyFill" style={{ width: `${percentage}%` }} />
       </div>
+      <span className="energyText">
+        {energy}/{maxEnergy}
+      </span>
     </div>
   );
-}
+};
 
 export default EnergyBar;

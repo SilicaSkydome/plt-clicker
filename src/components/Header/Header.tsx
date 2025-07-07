@@ -1,146 +1,48 @@
+// components/Header/Header.tsx
 import React from "react";
 import "./Header.css";
-import Logo from "../../assets/Logo.png";
-import Token from "../../assets/img/TOKEN.svg";
-import { useClickAway } from "@uidotdev/usehooks";
-import { HeaderProps, Rank, UserData } from "../../Interfaces";
-import ProgressBar from "../Common/ProgressBar/ProgressBar";
-import { db } from "../../../firebaseConfig";
-import { doc, updateDoc } from "firebase/firestore";
-import ship1 from "../../assets/img/ship.webp";
-import ship2 from "../../assets/img/ship2.png";
-import ship3 from "../../assets/img/ship3.png";
-import ship4 from "../../assets/img/ship4.png";
-import ship5 from "../../assets/img/ship5.png";
-import ship6 from "../../assets/img/ship6.png";
-import Store from "../../assets/img/store.svg";
-import { useNavigate } from "react-router-dom";
+import { useAppSelector } from "../../store";
+import { formatBalance } from "./utils";
+import { useHeaderLogic } from "./useHeaderLogic";
+import ProfileModal from "./ProfileModal";
+import BankModal from "./BankModal";
 
-function Header({ user, balance, ranks, setUser }: HeaderProps) {
-  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
-  const [isBankOpen, setIsBankOpen] = React.useState(false);
-  const isTestMode = false;
-  const navigate = useNavigate();
+import bankIcon from "../../assets/img/TOKEN.svg";
+import mapIcon from "../../assets/img/Compass.svg";
 
-  const handleProfileClick = () => {
-    setIsProfileOpen(!isProfileOpen);
-  };
+const Header = () => {
+  const user = useAppSelector((state) => state.user.user);
+  const balance = useAppSelector((state) => state.game.balance);
+  const rank = useAppSelector((state) => state.game.rank);
 
-  const handleStoreClick = () => {
-    navigate("/store");
-  };
-  const handleMapClick = () => {
-    navigate("/map");
-  };
+  const { showProfile, showBank, toggleProfile, toggleBank, goToMap } =
+    useHeaderLogic();
 
-  const handleBankClick = () => {
-    setIsBankOpen(!isBankOpen);
-  };
-
-  const profileRef = useClickAway(() => {
-    setIsProfileOpen(false);
-  });
-
-  const bankRef = useClickAway(() => {
-    setIsBankOpen(false);
-  });
-
-  const formatBalance = (balance: number | null): string => {
-    if (balance === null) return "Загрузка...";
-
-    const absBalance = Math.abs(balance);
-    const sign = balance < 0 ? "-" : "";
-
-    if (absBalance >= 1_000_000_000_000) {
-      return `${sign}${(balance / 1_000_000_000_000).toFixed(2)}T`;
-    } else if (absBalance >= 1_000_000_000) {
-      return `${sign}${(balance / 1_000_000_000).toFixed(2)}B`;
-    } else if (absBalance >= 1_000_000) {
-      return `${sign}${(balance / 1_000_000).toFixed(2)}M`;
-    } else if (absBalance >= 1_000) {
-      return `${sign}${(balance / 1_000).toFixed(2)}k`;
-    } else {
-      return balance.toFixed(2);
-    }
-  };
+  if (!user) return null;
 
   return (
-    <>
-      <div className="header">
-        <div className="headerRow">
-          <div className="profile">
-            <div
-              className="profilePicture"
-              onClick={() => handleProfileClick()}
-            >
-              <img src={user?.photoUrl} alt="avatar" />
-            </div>
-            <div className="storeButton" onClick={() => handleStoreClick()}>
-              <img src={Store} alt="Store" />
-            </div>
-          </div>
+    <div className="header">
+      <div className="headerRow">
+        <div className="headerItem profile" onClick={toggleProfile}>
+          <img
+            src={user.photoUrl}
+            alt="Profile"
+            className="headerIcon profilePicture"
+          />
+        </div>
+        <div className="headerItem compass" onClick={goToMap}>
+          <img src={mapIcon} alt="Map" className="headerIcon" />
+        </div>
+        <div className="headerItem balance" onClick={toggleBank}>
+          <img src={bankIcon} alt="Bank" className="headerIcon" />
+          <span className="headerText">{formatBalance(balance)}</span>
+        </div>
 
-          <div className="compass" onClick={() => handleMapClick()}>
-            {user?.rank && (
-              <ProgressBar
-                balance={balance}
-                currentRank={user.rank}
-                ranks={ranks || []}
-              />
-            )}
-          </div>
-          <div className="balance">
-            <div className="balanceInside" onClick={() => handleBankClick()}>
-              <div className="balanceImg">
-                <img src={Token} alt="" />
-              </div>
-              <div className="balanceContent">
-                Balance
-                <div className="balanceAmount">{formatBalance(balance)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {isTestMode && (
-          <div
-            className="testModeIndicator"
-            style={{ color: "red", textAlign: "center" }}
-          >
-            Тестовый оффлайн-режим
-          </div>
-        )}
+        {showProfile && <ProfileModal onClose={toggleProfile} />}
+        {showBank && <BankModal onClose={toggleBank} />}
       </div>
-
-      <div
-        //@ts-ignore
-        ref={profileRef}
-        className={`profileModal ${isProfileOpen ? "isOpen" : ""}`}
-      >
-        <h1>Profile</h1>
-        <div className="avatar">
-          <img src={user?.photoUrl} alt="avatar" />
-        </div>
-        <h2>{user?.username}</h2>
-        <div className="profileModalRank">
-          <p>Your rank:</p>
-          <h3>{user?.rank?.title}</h3>
-        </div>
-        <div className="seaCount">You have opened 4 seas</div>
-        <div className="tillNext">Until the next sea is left:</div>
-      </div>
-      <div
-        //@ts-ignoreI'm
-        ref={bankRef}
-        className={`bankModal ${isBankOpen ? "isOpen" : ""}`}
-      >
-        <h1>Bank</h1>
-        <div className="bankContent">
-          <p>Bank is under construction</p>
-          <p>Stay tuned for updates!</p>
-        </div>
-      </div>
-    </>
+    </div>
   );
-}
+};
 
 export default Header;

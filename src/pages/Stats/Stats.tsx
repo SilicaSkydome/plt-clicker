@@ -1,34 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { db } from "../../../firebaseConfig"; // Импортируйте ваш Firestore
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+// pages/Stats/Stats.tsx
+import React from "react";
 import "./Stats.css";
 import top1 from "../../assets/img/top-1.png";
 import top2 from "../../assets/img/top-2.png";
 import top3 from "../../assets/img/top-3.png";
-import { playerRank, Rank } from "../../Interfaces";
+import { useLeaderboard } from "./useLeaderboard";
 
 function Stats() {
-  const [players, setPlayers] = useState<playerRank[]>([]);
+  const { players, loading, error } = useLeaderboard(30);
 
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      const q = query(
-        collection(db, "userData"),
-        orderBy("balance", "desc"),
-        limit(30)
-      );
-      const snapshot = await getDocs(q);
-      const playerData = snapshot.docs.map((doc, index) => ({
-        rank: index + 1,
-        title: doc.data().rank?.title || "No Rank",
-        name: doc.data().username || doc.data().firstName,
-        balance: doc.data().balance,
-        avatar: doc.data().photoUrl || "https://placehold.co/100",
-      }));
-      setPlayers(playerData);
-    };
-    fetchPlayers();
-  }, []);
+  if (loading) return <div className="statsPage">Loading leaderboard...</div>;
+  if (error) return <div className="statsPage">Error: {error}</div>;
 
   const topThree = players.slice(0, 3);
   const others = players.slice(3);
@@ -38,7 +20,7 @@ function Stats() {
       <div className="statsPanel">
         <h1 className="statsTitle">STATS</h1>
         <div className="topThree">
-          {topThree.map((player, index) => (
+          {topThree.map((player) => (
             <div key={player.rank} className={`topPlayer rank-${player.rank}`}>
               <div className="avatarWrapper">
                 <img src={player.avatar} alt={player.name} className="avatar" />

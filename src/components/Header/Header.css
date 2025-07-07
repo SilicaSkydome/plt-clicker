@@ -130,7 +130,7 @@
   background-color: #ffe09d;
   z-index: 110;
 }
-.profileModal h1 {
+.profileModal h2 {
   font-family: "Le Major";
   font-weight: 400;
   font-size: 20px;
@@ -227,15 +227,6 @@
   );
 
   z-index: 10;
-}
-.seaCount {
-  font-family: "Inter";
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 150%;
-  text-align: center;
-
-  color: #5e5e5e;
 }
 .tillNext {
   font-family: "Inter";
