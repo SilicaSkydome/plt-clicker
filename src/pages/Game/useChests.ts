@@ -77,6 +77,25 @@ export async function saveChestData(chest: ChestData) {
   }
 }
 
+// useChests.ts
+export function isOverlapping(
+  x: number,
+  y: number,
+  existingChests: Array<{ x: number; y: number }>,
+  boat: { x: number; y: number } | null,
+  minDistance: number
+): boolean {
+  if (!boat) return false;
+  const boatDistance = Math.sqrt((x - boat.x) ** 2 + (y - boat.y) ** 2);
+  if (boatDistance < minDistance * 2) return true;
+
+  for (const chest of existingChests) {
+    const distance = Math.sqrt((x - chest.x) ** 2 + (y - chest.y) ** 2);
+    if (distance < minDistance && (chest.x !== x || chest.y !== y)) return true;
+  }
+  return false;
+}
+
 export function shouldRespawn(lastSpawnTime: number | null): boolean {
   // Спавним сразу, если lastSpawnTime отсутствует или не был установлен (например, при перезагрузке)
   if (!lastSpawnTime || lastSpawnTime === 0) return true;

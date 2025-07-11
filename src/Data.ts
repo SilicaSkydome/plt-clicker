@@ -7,6 +7,15 @@ import ship5 from "./assets/img/ships/ship5.png";
 import ship6 from "./assets/img/ships/ship6.png";
 import commonChest from "./assets/img/Chests/chestPlaceholder.webp";
 // import rareChest from "./assets/img/Chests/rareShip.png";
+import ring1 from "./assets/img/circles/1.png";
+import ring2 from "./assets/img/circles/2.png";
+import ring3 from "./assets/img/circles/3.png";
+import ring4 from "./assets/img/circles/4.png";
+import ring5 from "./assets/img/circles/5.png";
+import ring6 from "./assets/img/circles/6.png";
+import ring7 from "./assets/img/circles/7.png";
+import ring8 from "./assets/img/circles/8.png";
+import ring9 from "./assets/img/circles/9.png";
 
 const locations: Location[] = [
   {
@@ -135,6 +144,17 @@ const chests = [
   { id: "common", image: commonChest },
   // { id: "rare", image: rareChest },
 ];
+const rings = [
+  { id: "ring1", image: ring1 },
+  { id: "ring2", image: ring2 },
+  { id: "ring3", image: ring3 },
+  { id: "ring4", image: ring4 },
+  { id: "ring5", image: ring5 },
+  { id: "ring6", image: ring6 },
+  { id: "ring7", image: ring7 },
+  { id: "ring8", image: ring8 },
+  { id: "ring9", image: ring9 },
+];
 // Определяем ранги
 const ranks: Rank[] = [
   {
@@ -250,4 +270,4 @@ const initialTasks: Task[] = [
   },
 ];
 
-export { locations, ships, chests, ranks, initialTasks };
+export { locations, ships, chests, rings, ranks, initialTasks };

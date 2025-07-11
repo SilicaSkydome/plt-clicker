@@ -5,6 +5,7 @@ import {
   shipScaleAdjustments,
   MIN_CHEST_DISTANCE,
   chestTextures,
+  ringTextures,
 } from "./config";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { handleBoatClick, handleChestClick } from "./utils";
@@ -35,6 +36,16 @@ export function usePhaserGame(
   const userId = useAppSelector(
     (state) => state.user.user?.id ?? "test_user_123"
   );
+  const chestDataRef = useRef<
+    Array<{
+      chest: Phaser.GameObjects.Image | null;
+      rings: Phaser.GameObjects.Image[];
+      x: number;
+      y: number;
+      id: number;
+    }>
+  >([]);
+  const lastVisibleCountRef = useRef<number | null>(null);
   const isTestMode = window.env?.VITE_TEST_MODE === "true";
 
   useEffect(() => {
@@ -53,7 +64,16 @@ export function usePhaserGame(
       scene: {
         preload,
         create,
-        update,
+        update: function (this: Phaser.Scene) {
+          const visibleCount = chestDataRef.current.filter(
+            (entry) => entry.chest?.active && entry.chest?.visible
+          ).length;
+
+          if (lastVisibleCountRef.current !== visibleCount) {
+            console.log(`Active chests changed: ${visibleCount} visible`);
+            lastVisibleCountRef.current = visibleCount;
+          }
+        },
       },
       input: {
         activePointers: 3,
@@ -67,6 +87,7 @@ export function usePhaserGame(
       Object.values(chestTextures).forEach((key) => {
         this.load.image(key, key);
       });
+      Object.values(ringTextures).forEach((key) => this.load.image(key, key));
     }
 
     async function create(this: Phaser.Scene) {
@@ -114,44 +135,102 @@ export function usePhaserGame(
         baseWidth,
         baseHeight
       );
-      console.log("Loaded chests:", chestsData);
       chestsRef.current = [];
 
       chestsData.forEach((chest) => {
         if (shouldRespawn(chest.lastSpawnTime)) {
-          // Ограничиваем область спавна (отступ от хедера и ближе к кораблю)
-          const headerHeight = 80; // Примерная высота хедера (проверь в Header.css)
-          const maxDistance = 200; // Максимальное расстояние от корабля
-          let x, y, distance;
+          // Improved positioning logic
+          const headerHeight = 80;
+          const maxDistance = 200;
           const boatX = boatRef.current?.x || baseWidth / 2;
           const boatY = boatRef.current?.y || baseHeight / 2;
+
+          let x, y, distance;
+          let attempts = 0;
+          const maxAttempts = 10;
 
           do {
             x = boatX + (Math.random() - 0.5) * maxDistance * 2;
             y = boatY + (Math.random() - 0.5) * maxDistance * 2;
             distance = Math.sqrt((x - boatX) ** 2 + (y - boatY) ** 2);
+            attempts++;
           } while (
-            distance < MIN_CHEST_DISTANCE ||
-            distance > maxDistance ||
-            x < 25 ||
-            x > baseWidth - 25 ||
-            y < headerHeight + 25 ||
-            y > baseHeight - 25
+            (distance < MIN_CHEST_DISTANCE ||
+              distance > maxDistance ||
+              x < 25 ||
+              x > baseWidth - 25 ||
+              y < headerHeight + 25 ||
+              y > baseHeight - 25) &&
+            attempts < maxAttempts
           );
+
+          if (attempts >= maxAttempts) {
+            console.warn("Could not find valid position for chest");
+            return;
+          }
 
           const chestSprite = this.add
             .image(x, y, chestTextures.commonChest)
             .setInteractive({ useHandCursor: true })
-            .setDepth(1)
+            .setDepth(3)
             .setScale(0.05 * scaleFactor);
 
+          const rings: Phaser.GameObjects.Sprite[] = [];
+
+          Object.values(ringTextures).forEach((key, index) => {
+            const ring = this.add
+              .sprite(x, y, key)
+              .setDepth(0)
+              .setScale(0) as Phaser.GameObjects.Sprite;
+
+            const ringTexture = this.textures
+              .get(key)
+              .getSourceImage() as HTMLImageElement;
+            const ringOriginalWidth = ringTexture.width;
+            const desiredRingWidth = baseWidth * (0.3 + index * 0.07);
+            const ringScale = desiredRingWidth / ringOriginalWidth;
+            const minRingScale = 0.2 + index * 0.07;
+            const maxRingScale = ringScale;
+
+            this.tweens.add({
+              targets: ring,
+              scale: { from: minRingScale, to: maxRingScale },
+              duration: 3000,
+              delay: index * 500,
+              ease: "Sine.easeInOut",
+              repeat: -1,
+              yoyo: true,
+            });
+
+            this.tweens.add({
+              targets: ring,
+              alpha: { from: 0.4, to: 1 },
+              duration: 3000,
+              delay: index * 500,
+              ease: "Sine.easeInOut",
+              repeat: -1,
+              yoyo: true,
+            });
+
+            rings.push(ring);
+          });
+          const chestEntry = {
+            chest: chestSprite,
+            rings,
+            x,
+            y,
+            id: chest.id,
+          };
+          chestDataRef.current.push(chestEntry);
           handleChestClick(
             chestSprite,
             chest,
             currentSceneRef.current!,
             setClickQueue,
             dispatch,
-            scaleFactor
+            scaleFactor,
+            rings,
+            chestDataRef
           );
 
           chestsRef.current.push(chestSprite);
@@ -160,15 +239,12 @@ export function usePhaserGame(
             ...chest,
             x,
             y,
-            lastSpawnTime: null, // Не обновляем lastSpawnTime при спавне
+            lastSpawnTime: null,
           };
+
           saveChestData(updatedChest);
         }
       });
-    }
-
-    function update(this: Phaser.Scene) {
-      // Логика обновления, если потребуется
     }
 
     if (!gameInstance.current) {

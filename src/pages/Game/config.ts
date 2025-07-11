@@ -1,5 +1,5 @@
 // pages/Game/config.ts
-import { ships, chests } from "../../Data";
+import { ships, chests, rings } from "../../Data";
 
 // Отображение ключей кораблей и путей к текстурам (должны соответствовать preload)
 export const shipTextures: Record<string, string> = {
@@ -9,6 +9,13 @@ export const shipTextures: Record<string, string> = {
   ship4: ships[3].image,
   ship5: ships[4].image,
   ship6: ships[5].image,
+};
+
+// config.ts
+export const ringTextures: Record<string, string> = {
+  ring1: rings[0].image,
+  ring2: rings[1].image,
+  ring3: rings[2].image,
 };
 
 // Коэффициенты масштаба для разных кораблей
@@ -36,3 +43,11 @@ export const CHEST_RESPAWN_TIME_MS = 30000;
 
 // Минимальное расстояние между сундуками и другими объектами (в px)
 export const MIN_CHEST_DISTANCE = 30;
+
+export const DEPTH_LAYERS = {
+  BACKGROUND: 0,
+  RINGS: 1, // Lowest (farthest back)
+  CHESTS: 3, // Above rings
+  BOAT: 5, // Above chests
+  UI_TEXT: 10, // Topmost
+};

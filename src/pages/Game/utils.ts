@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Rank, ChestData } from "../../Interfaces";
 import { AppDispatch } from "../../store";
 import { saveChestData } from "./useChests";
+import { chestTextures, ringTextures } from "./config";
 
 export function handleBoatClick(
   boatRef: Phaser.GameObjects.Image,
@@ -91,40 +92,135 @@ export function handleChestClick(
     >
   >,
   dispatch: AppDispatch,
-  scaleFactor: number
+  scaleFactor: number,
+  rings: Phaser.GameObjects.Sprite[],
+  chestDataRef: React.MutableRefObject<
+    Array<{
+      chest: Phaser.GameObjects.Image | null;
+      rings: Phaser.GameObjects.Image[];
+      x: number;
+      y: number;
+      id: number;
+    }>
+  >
 ) {
-  if (!chestSprite || !currentSceneRef) return;
+  chestSprite.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+    const points = Math.floor(Math.random() * (10 - 3 + 1)) + 3;
 
-  chestSprite.on(
-    "pointerdown",
-    (
-      pointer: Phaser.Input.Pointer,
-      localX: number,
-      localY: number,
-      //@ts-ignore
-      event: Phaser.Input.EventData
-    ) => {
-      event.stopPropagation();
+    // Add visual feedback
+    const plusText = currentSceneRef.add
+      .text(chestSprite.x, chestSprite.y, `+${points}`, {
+        fontSize: `${16 * scaleFactor}px`,
+        color: "#ffd700",
+      })
+      .setOrigin(0.5)
+      .setDepth(4);
 
-      const points = Math.floor(Math.random() * (10 - 3 + 1)) + 3; // Случайная награда от 3 до 10
+    currentSceneRef.tweens.add({
+      targets: plusText,
+      y: chestSprite.y - 30 * scaleFactor,
+      alpha: 0,
+      duration: 1000,
+      onComplete: () => plusText.destroy(),
+    });
 
-      dispatch({ type: "game/incrementBalance", payload: points });
-      dispatch({ type: "user/saveGameData" });
+    dispatch({ type: "game/incrementBalance", payload: points });
+    dispatch({ type: "user/saveGameData" });
 
-      const currentTime = Date.now();
-      const updatedChest: ChestData = {
-        ...chestData,
-        x: chestSprite.x,
-        y: chestSprite.y,
-        lastSpawnTime: currentTime,
-      };
-      saveChestData(updatedChest);
+    const currentTime = Date.now();
+    const updatedChest: ChestData = {
+      ...chestData,
+      x: chestSprite.x,
+      y: chestSprite.y,
+      lastSpawnTime: currentTime,
+    };
+    saveChestData(updatedChest);
 
-      chestSprite.destroy();
-
-      console.log("Chest clicked, points added:", points);
+    const chestIndex = chestDataRef.current.findIndex(
+      (c) => c.chest === chestSprite
+    );
+    if (chestIndex !== -1) {
+      chestDataRef.current[chestIndex].chest = null;
+      chestDataRef.current[chestIndex].rings = [];
     }
-  );
+    chestSprite.destroy();
+    rings.forEach((ring) => ring.destroy());
+
+    // Schedule respawn with rings
+    currentSceneRef.time.addEvent({
+      delay: 30000,
+      callback: () => {
+        if (currentSceneRef.scene.isActive()) {
+          const newChest = currentSceneRef.add
+            .image(updatedChest.x, updatedChest.y, chestTextures.commonChest)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(3)
+            .setScale(0.05 * scaleFactor);
+
+          // Create new rings for the respawned chest
+          const newRings: Phaser.GameObjects.Sprite[] = [];
+          Object.values(ringTextures).forEach((key, index) => {
+            const ring = currentSceneRef.add
+              .sprite(updatedChest.x, updatedChest.y, key)
+              .setDepth(0)
+              .setScale(0);
+
+            const ringTexture = currentSceneRef.textures
+              .get(key)
+              .getSourceImage() as HTMLImageElement;
+            const ringOriginalWidth = ringTexture.width;
+            const desiredRingWidth =
+              currentSceneRef.scale.width * (0.3 + index * 0.07);
+            const ringScale = desiredRingWidth / ringOriginalWidth;
+            const minRingScale = 0.2 + index * 0.07;
+            const maxRingScale = ringScale;
+
+            currentSceneRef.tweens.add({
+              targets: ring,
+              scale: { from: minRingScale, to: maxRingScale },
+              duration: 3000,
+              delay: index * 500,
+              ease: "Sine.easeInOut",
+              repeat: -1,
+              yoyo: true,
+            });
+
+            currentSceneRef.tweens.add({
+              targets: ring,
+              alpha: { from: 0.4, to: 1 },
+              duration: 3000,
+              delay: index * 500,
+              ease: "Sine.easeInOut",
+              repeat: -1,
+              yoyo: true,
+            });
+
+            newRings.push(ring);
+          });
+
+          const chestEntry = {
+            chest: newChest,
+            rings: newRings,
+            x: updatedChest.x,
+            y: updatedChest.y,
+            id: chestData.id,
+          };
+          chestDataRef.current.push(chestEntry);
+
+          handleChestClick(
+            newChest,
+            { ...updatedChest, lastSpawnTime: null },
+            currentSceneRef,
+            setClickQueue,
+            dispatch,
+            scaleFactor,
+            newRings,
+            chestDataRef
+          );
+        }
+      },
+    });
+  });
 }
 
 export function processClickQueue(
