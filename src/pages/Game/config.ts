@@ -1,5 +1,5 @@
 // pages/Game/config.ts
-import { ships } from "../../Data";
+import { ships, chests } from "../../Data";
 
 // Отображение ключей кораблей и путей к текстурам (должны соответствовать preload)
 export const shipTextures: Record<string, string> = {
@@ -19,6 +19,10 @@ export const shipScaleAdjustments: Record<string, number> = {
   ship4: 3.5,
   ship5: 3.5,
   ship6: 3.5,
+};
+export const chestTextures: Record<string, string> = {
+  commonChest: chests[0].image,
+  // rareChest: chests[1].image,
 };
 
 // Настройки регенерации энергии

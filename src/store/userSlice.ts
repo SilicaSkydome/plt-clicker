@@ -4,7 +4,8 @@ import { UserData, Referal, Rank } from "../Interfaces";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { initialTasks, ranks } from "../Data";
-import { RootState } from "./index";
+import { RootState, useAppDispatch, useAppSelector } from "./index";
+import { updateBalance } from "./gameSlice";
 
 export const fetchUserData = createAsyncThunk(
   "user/fetchUserData",
@@ -17,6 +18,7 @@ export const fetchUserData = createAsyncThunk(
           first_name: "Dev",
           username: "dev_user",
           photo_url: "",
+          balance: 999,
         };
         console.log("🚧 Telegram not detected, using test user:", telegramUser);
       }
@@ -28,6 +30,7 @@ export const fetchUserData = createAsyncThunk(
 
       if (userDoc.exists()) {
         const userData = userDoc.data() as UserData;
+
         return userData;
       } else {
         const newUser: UserData = {

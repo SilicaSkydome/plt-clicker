@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, Routes, Route } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { RootState, useAppSelector } from "./store";
+import { RootState, useAppDispatch, useAppSelector } from "./store";
 import { ranks } from "./Data";
 import Game from "./pages/Game/Game";
 import Stats from "./pages/Stats/Stats";
@@ -12,6 +12,7 @@ import Store from "./pages/Shop/Shop";
 import RoadMap from "./pages/Map/Map";
 import NavMenu from "./components/NavMenu/NavMenu";
 import Shop from "./pages/Shop/Shop";
+import { updateBalance } from "./store/gameSlice";
 
 const isNightTime = (): boolean => {
   const hour = new Date().getHours();
@@ -53,6 +54,14 @@ const AppContent = () => {
   if (isLoading || !user) {
     return <div>Loading user...</div>;
   }
+
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (user) {
+      dispatch(updateBalance(user.balance));
+    }
+  }, [user]);
 
   return (
     <div className={`app ${bgClass()}`}>

@@ -5,6 +5,8 @@ import ship3 from "./assets/img/ships/ship3.png";
 import ship4 from "./assets/img/ships/ship4.png";
 import ship5 from "./assets/img/ships/ship5.png";
 import ship6 from "./assets/img/ships/ship6.png";
+import commonChest from "./assets/img/Chests/chestPlaceholder.webp";
+// import rareChest from "./assets/img/Chests/rareShip.png";
 
 const locations: Location[] = [
   {
@@ -129,7 +131,10 @@ const ships = [
     price: 0,
   },
 ];
-
+const chests = [
+  { id: "common", image: commonChest },
+  // { id: "rare", image: rareChest },
+];
 // Определяем ранги
 const ranks: Rank[] = [
   {
@@ -245,4 +250,4 @@ const initialTasks: Task[] = [
   },
 ];
 
-export { locations, ships, ranks, initialTasks };
+export { locations, ships, chests, ranks, initialTasks };

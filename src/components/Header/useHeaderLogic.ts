@@ -10,6 +10,9 @@ export function useHeaderLogic() {
   const toggleProfile = () => setShowProfile((prev) => !prev);
   const toggleBank = () => setShowBank((prev) => !prev);
 
+  const closeProfile = () => setShowProfile(false);
+  const closeBank = () => setShowBank(false);
+
   const goToMap = () => navigate("/map");
 
   return {
@@ -18,5 +21,7 @@ export function useHeaderLogic() {
     toggleProfile,
     toggleBank,
     goToMap,
+    closeProfile,
+    closeBank,
   };
 }

@@ -1,0 +1,151 @@
+import Phaser from "phaser";
+import { Rank, ChestData } from "../../Interfaces";
+import { AppDispatch } from "../../store";
+import { saveChestData } from "./useChests";
+
+export function handleBoatClick(
+  boatRef: Phaser.GameObjects.Image,
+  currentSceneRef: Phaser.Scene,
+  energyRef: React.MutableRefObject<number>,
+  lastEnergyUpdateRef: React.MutableRefObject<number>,
+  syncDisplayEnergy: () => void,
+  setClickQueue: React.Dispatch<
+    React.SetStateAction<
+      { type: string; points: number; energyAtClick: number }[]
+    >
+  >,
+  currentRank: Rank,
+  dispatch: AppDispatch,
+  scaleFactor: number
+) {
+  if (!boatRef || !currentSceneRef) return;
+
+  boatRef.on(
+    "pointerdown",
+    (
+      pointer: Phaser.Input.Pointer,
+      localX: number,
+      localY: number,
+      //@ts-ignore
+      event: Phaser.Input.EventData
+    ) => {
+      event.stopPropagation();
+
+      if (energyRef.current <= 0) {
+        const warningText = currentSceneRef.add
+          .text(boatRef.x, boatRef.y, "Not enough energy!", {
+            fontSize: `${16 * scaleFactor}px`,
+            color: "#ff0000",
+          })
+          .setOrigin(0.5)
+          .setDepth(4);
+
+        currentSceneRef.tweens.add({
+          targets: warningText,
+          y: boatRef.y - 30 * scaleFactor,
+          alpha: 0,
+          duration: 1000,
+          onComplete: () => warningText.destroy(),
+        });
+        return;
+      }
+
+      const basePoints = 0.1;
+      const points = basePoints + currentRank.clickBonus;
+
+      const energyAtClick = energyRef.current;
+      energyRef.current = Math.max(energyRef.current - 1, 0);
+      const currentTime = Date.now();
+      lastEnergyUpdateRef.current = currentTime;
+
+      syncDisplayEnergy();
+      dispatch({
+        type: "game/updateEnergy",
+        payload: { energy: energyRef.current, time: currentTime },
+      });
+      dispatch({ type: "game/incrementBalance", payload: points });
+      dispatch({ type: "user/saveGameData" });
+
+      setClickQueue((prev) => [
+        ...prev,
+        { type: "boat", points, energyAtClick },
+      ]);
+
+      console.log(
+        "Boat clicked, points added:",
+        points,
+        "energy:",
+        energyRef.current
+      );
+    }
+  );
+}
+
+export function handleChestClick(
+  chestSprite: Phaser.GameObjects.Image,
+  chestData: ChestData,
+  currentSceneRef: Phaser.Scene,
+  setClickQueue: React.Dispatch<
+    React.SetStateAction<
+      { type: string; points: number; energyAtClick: number }[]
+    >
+  >,
+  dispatch: AppDispatch,
+  scaleFactor: number
+) {
+  if (!chestSprite || !currentSceneRef) return;
+
+  chestSprite.on(
+    "pointerdown",
+    (
+      pointer: Phaser.Input.Pointer,
+      localX: number,
+      localY: number,
+      //@ts-ignore
+      event: Phaser.Input.EventData
+    ) => {
+      event.stopPropagation();
+
+      const points = Math.floor(Math.random() * (10 - 3 + 1)) + 3; // Случайная награда от 3 до 10
+
+      dispatch({ type: "game/incrementBalance", payload: points });
+      dispatch({ type: "user/saveGameData" });
+
+      const currentTime = Date.now();
+      const updatedChest: ChestData = {
+        ...chestData,
+        x: chestSprite.x,
+        y: chestSprite.y,
+        lastSpawnTime: currentTime,
+      };
+      saveChestData(updatedChest);
+
+      chestSprite.destroy();
+
+      console.log("Chest clicked, points added:", points);
+    }
+  );
+}
+
+export function processClickQueue(
+  clickQueue: { type: string; points: number; energyAtClick: number }[],
+  setClickQueue: React.Dispatch<
+    React.SetStateAction<
+      { type: string; points: number; energyAtClick: number }[]
+    >
+  >,
+  isTestMode: boolean
+) {
+  if (clickQueue.length === 0) return;
+
+  // В тестовом режиме просто очищаем очередь
+  if (isTestMode) {
+    console.log("Test mode: Clearing clickQueue", clickQueue);
+    setClickQueue([]);
+    return;
+  }
+
+  // В обычном режиме предполагается, что saveGameData уже обработал данные
+  console.log("Processing clickQueue:", clickQueue);
+  setClickQueue([]);
+}
