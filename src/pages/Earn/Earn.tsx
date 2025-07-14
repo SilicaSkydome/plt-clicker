@@ -1,5 +1,4 @@
-// pages/Earn/Earn.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useAppSelector } from "../../store";
 import { Task, TaskData } from "../../Interfaces";
 import { initialTasks } from "../../Data";
@@ -9,13 +8,11 @@ import "./Earn.css";
 
 const Earn: React.FC = () => {
   const user = useAppSelector((state) => state.user.user);
-  const [taskDataList, setTaskDataList] = useState<TaskData[]>(
-    initialTasks.map(({ action, ...rest }) => ({ ...rest, completed: false }))
-  );
-  const [balance, setBalance] = useState<number>(user?.balance || 0);
+  const tasks = useAppSelector((state) => state.tasks.tasks);
+  const balance = useAppSelector((state) => state.game.balance);
 
   const enhancedTasks: Task[] = initialTasks.map((task) => {
-    const saved = taskDataList.find((t) => t.title === task.title);
+    const saved = tasks.find((t) => t.title === task.title);
     return {
       ...task,
       completed: saved?.completed ?? false,
@@ -24,8 +21,8 @@ const Earn: React.FC = () => {
 
   const { handleTaskClick } = useEarnLogic(
     enhancedTasks,
-    setTaskDataList,
-    setBalance
+    () => {},
+    () => {}
   );
 
   return (

@@ -1,4 +1,3 @@
-// src/store/tasksSlice.ts
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Task, TaskData } from "../Interfaces";
 import { initialTasks } from "../Data";
@@ -17,15 +16,14 @@ const tasksSlice = createSlice({
   name: "tasks",
   initialState,
   reducers: {
-    setTasks(state, action: PayloadAction<Task[]>) {
-      state.tasks = action.payload.map(({ action, ...task }) => ({
-        ...task,
-      }));
+    setTasks(state, action: PayloadAction<TaskData[]>) {
+      state.tasks = action.payload;
     },
     completeTask(state, action: PayloadAction<string>) {
       const task = state.tasks.find((t) => t.title === action.payload);
       if (task) {
         task.completed = true;
+        console.log("Task marked as completed in Redux:", action.payload);
       }
     },
     resetTasks(state) {

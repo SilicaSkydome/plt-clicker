@@ -1,5 +1,4 @@
-// pages/Earn/useEarnLogic.ts
-import { useAppSelector } from "../../store";
+import { useAppSelector, useAppDispatch } from "../../store";
 import { db } from "../../../firebaseConfig";
 import {
   collection,
@@ -12,6 +11,8 @@ import {
 import { useCallback } from "react";
 import { Task, TaskData } from "../../Interfaces";
 import { useNavigate } from "react-router-dom";
+import { completeTask } from "../../store/tasksSlice";
+import { updateBalance } from "../../store/gameSlice";
 
 export function useEarnLogic(
   tasks: Task[],
@@ -20,6 +21,7 @@ export function useEarnLogic(
 ) {
   const user = useAppSelector((state) => state.user.user);
   const balance = useAppSelector((state) => state.game.balance);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   const handleTaskClick = useCallback(
@@ -30,31 +32,52 @@ export function useEarnLogic(
         typeof task.action !== "function" ||
         !task.action(balance, setBalance, user, navigate)
       ) {
+        console.log("Task click aborted:", { userId: user?.id, task });
         return;
       }
 
-      const q = query(collection(db, "userData"), where("id", "==", user.id));
-      const snapshot = await getDocs(q);
+      try {
+        const q = query(collection(db, "userData"), where("id", "==", user.id));
+        const snapshot = await getDocs(q);
 
-      if (!snapshot.empty) {
-        const docRef = snapshot.docs[0].ref;
+        if (!snapshot.empty) {
+          const docRef = snapshot.docs[0].ref;
 
-        const updatedTaskDataList: TaskData[] = tasks.map(({ action, ...t }) =>
-          t.title === task.title ? { ...t, completed: true } : t
-        );
+          const updatedTaskDataList: TaskData[] = tasks.map(
+            ({ action, ...t }) =>
+              t.title === task.title ? { ...t, completed: true } : t
+          );
 
-        const newBalance = balance + (task.points || 0);
+          const newBalance = balance + (task.points || 0);
 
-        await updateDoc(docRef, {
-          balance: newBalance,
-          tasks: updatedTaskDataList,
-        });
+          // Обновляем Firestore
+          await updateDoc(docRef, {
+            balance: newBalance,
+            tasks: updatedTaskDataList,
+          });
 
-        setBalance(newBalance);
-        setTaskDataList(updatedTaskDataList);
+          // Синхронизируем с Redux
+          dispatch(completeTask(task.title));
+          dispatch(updateBalance(newBalance));
+
+          // Обновляем локальное состояние
+          setTaskDataList(updatedTaskDataList);
+          setBalance(newBalance);
+
+          console.log(
+            "Task completed:",
+            task.title,
+            "New balance:",
+            newBalance
+          );
+        } else {
+          console.error("User document not found for id:", user.id);
+        }
+      } catch (error) {
+        console.error("Failed to complete task:", error);
       }
     },
-    [user?.id, balance, tasks, setTaskDataList, setBalance, navigate]
+    [user?.id, balance, tasks, setTaskDataList, setBalance, dispatch, navigate]
   );
 
   return { handleTaskClick };

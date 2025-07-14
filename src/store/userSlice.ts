@@ -5,6 +5,7 @@ import { db } from "../../firebaseConfig";
 import { initialTasks, ranks } from "../Data";
 import { RootState } from "./index";
 import { updateBalance } from "./gameSlice";
+import { setTasks } from "./tasksSlice";
 
 export const fetchUserData = createAsyncThunk(
   "user/fetchUserData",
@@ -29,6 +30,8 @@ export const fetchUserData = createAsyncThunk(
       if (userDoc.exists()) {
         const userData = userDoc.data() as UserData;
         dispatch(updateBalance(userData.balance));
+        dispatch(setTasks(userData.tasks));
+        console.log("Fetched user data from Firestore:", userData);
         return userData;
       } else {
         const newUser: UserData = {
@@ -48,6 +51,8 @@ export const fetchUserData = createAsyncThunk(
         };
         await setDoc(userDocRef, newUser);
         dispatch(updateBalance(newUser.balance));
+        dispatch(setTasks(newUser.tasks));
+        console.log("Created new user in Firestore:", newUser);
         return newUser;
       }
     } catch (err) {
@@ -68,6 +73,11 @@ export const saveGameData = createAsyncThunk(
     if (!user || user.id === "test_user_123") {
       console.log("Skipping saveGameData: no user or test mode");
       return;
+    }
+
+    if (!tasks || !Array.isArray(tasks)) {
+      console.error("Invalid tasks data:", tasks);
+      return rejectWithValue("Invalid tasks data");
     }
 
     try {
