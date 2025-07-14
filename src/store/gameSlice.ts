@@ -9,6 +9,7 @@ interface GameState {
   lastEnergyUpdate: number;
   rank: Rank;
   maxEnergy: number;
+  location: string;
 }
 
 const initialState: GameState = {
@@ -17,6 +18,7 @@ const initialState: GameState = {
   lastEnergyUpdate: Date.now(),
   rank: ranks[0],
   maxEnergy: 50,
+  location: "1stSea",
 };
 
 const gameSlice = createSlice({
@@ -44,6 +46,10 @@ const gameSlice = createSlice({
     setMaxEnergy(state, action: PayloadAction<number>) {
       state.maxEnergy = action.payload;
     },
+    setLocation(state, action: PayloadAction<string>) {
+      console.log("Updating location in gameSlice:", action.payload);
+      state.location = action.payload;
+    },
   },
 });
 
@@ -53,6 +59,7 @@ export const {
   setRank,
   incrementBalance,
   setMaxEnergy,
+  setLocation,
 } = gameSlice.actions;
 
 export default gameSlice.reducer;

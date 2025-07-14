@@ -13,6 +13,7 @@ import RoadMap from "./pages/Map/Map";
 import NavMenu from "./components/NavMenu/NavMenu";
 import Shop from "./pages/Shop/Shop";
 import { updateBalance } from "./store/gameSlice";
+import { Toaster } from "react-hot-toast";
 
 const isNightTime = (): boolean => {
   const hour = new Date().getHours();
@@ -75,9 +76,10 @@ const AppContent = () => {
           path="/shop"
           element={<Shop user={user!} telegramUserId={user!.id} />}
         /> */}
-        {/* <Route path="/map" element={<RoadMap location={locationState} />} /> */}
+        <Route path="/map" element={<RoadMap />} />
       </Routes>
       <NavMenu />
+      <Toaster />
     </div>
   );
 };

@@ -1,11 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { UserData, Referal, Rank } from "../Interfaces";
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { initialTasks, ranks } from "../Data";
 import { RootState } from "./index";
-import { updateBalance } from "./gameSlice";
+import { updateBalance, updateEnergy, setLocation } from "./gameSlice";
 import { setTasks } from "./tasksSlice";
+import debounce from "lodash/debounce";
 
 export const fetchUserData = createAsyncThunk(
   "user/fetchUserData",
@@ -18,6 +19,7 @@ export const fetchUserData = createAsyncThunk(
           username: "dev_user",
           photo_url: "",
           balance: 999,
+          location: "1stSea",
         };
         console.log("🚧 Telegram not detected, using test user:", telegramUser);
       }
@@ -31,6 +33,13 @@ export const fetchUserData = createAsyncThunk(
         const userData = userDoc.data() as UserData;
         dispatch(updateBalance(userData.balance));
         dispatch(setTasks(userData.tasks));
+        dispatch(
+          updateEnergy({
+            energy: userData.energy,
+            time: userData.lastEnergyUpdate,
+          })
+        );
+        dispatch(setLocation(userData.location));
         console.log("Fetched user data from Firestore:", userData);
         return userData;
       } else {
@@ -52,6 +61,13 @@ export const fetchUserData = createAsyncThunk(
         await setDoc(userDocRef, newUser);
         dispatch(updateBalance(newUser.balance));
         dispatch(setTasks(newUser.tasks));
+        dispatch(
+          updateEnergy({
+            energy: newUser.energy,
+            time: newUser.lastEnergyUpdate,
+          })
+        );
+        dispatch(setLocation(newUser.location));
         console.log("Created new user in Firestore:", newUser);
         return newUser;
       }
@@ -62,12 +78,20 @@ export const fetchUserData = createAsyncThunk(
   }
 );
 
+const debouncedSetDoc = debounce(
+  async (userDocRef: any, userDataToUpdate: Partial<UserData>) => {
+    await setDoc(userDocRef, userDataToUpdate, { merge: true });
+  },
+  500,
+  { maxWait: 1000 }
+);
+
 export const saveGameData = createAsyncThunk(
   "user/saveGameData",
   async (_, { getState, rejectWithValue }) => {
     const state = getState() as RootState;
     const user = state.user.user;
-    const { balance, energy, lastEnergyUpdate, rank } = state.game;
+    const { balance, energy, lastEnergyUpdate, rank, location } = state.game;
     const tasks = state.tasks.tasks;
 
     if (!user || user.id === "test_user_123") {
@@ -80,6 +104,11 @@ export const saveGameData = createAsyncThunk(
       return rejectWithValue("Invalid tasks data");
     }
 
+    if (energy === undefined || lastEnergyUpdate === undefined) {
+      console.error("Invalid energy data:", { energy, lastEnergyUpdate });
+      return rejectWithValue("Invalid energy data");
+    }
+
     try {
       const userDocRef = doc(db, "userData", user.id);
       const tasksToSave = tasks;
@@ -89,11 +118,12 @@ export const saveGameData = createAsyncThunk(
         lastEnergyUpdate,
         rank,
         tasks: tasksToSave,
+        location,
         lastInteraction: new Date().toISOString(),
       };
 
       console.log("Saving to Firestore:", userDataToUpdate);
-      await setDoc(userDocRef, userDataToUpdate, { merge: true });
+      await debouncedSetDoc(userDocRef, userDataToUpdate);
       console.log("Successfully saved to Firestore:", userDataToUpdate);
     } catch (error) {
       console.error("Failed to save game data:", error);
