@@ -3,6 +3,7 @@ import { Rank, ChestData } from "../../Interfaces";
 import { AppDispatch } from "../../store";
 import { saveChestData } from "./useChests";
 import { chestTextures, ringTextures } from "./config";
+import { saveGameData } from "../../store/userSlice";
 
 export function handleBoatClick(
   boatRef: Phaser.GameObjects.Image,
@@ -247,4 +248,14 @@ export function processClickQueue(
   );
   // Не вызываем saveGameData, так как оно уже вызывается в handleBoatClick и handleChestClick
   setClickQueue([]);
+  dispatch(saveGameData())
+    .then(() => {
+      console.log("Game data saved successfully after processing clickQueue");
+    })
+    .catch((error) => {
+      console.error(
+        "Error saving game data after processing clickQueue:",
+        error
+      );
+    });
 }

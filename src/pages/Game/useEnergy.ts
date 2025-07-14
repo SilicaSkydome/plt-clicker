@@ -12,7 +12,7 @@ export default function useEnergy(maxEnergy: number) {
   const userId = useAppSelector(
     (state) => state.user.user?.id ?? "test_user_123"
   );
-  const isTestMode = window.env?.VITE_TEST_MODE === "true";
+  const isTestMode = false; // Set to true for testing purposes
 
   const energyRef = useRef(energy);
   const lastUpdateRef = useRef(lastUpdate);
