@@ -6,15 +6,6 @@ import store from "./store";
 import "./index.css";
 import App from "./App";
 
-declare global {
-  interface Window {
-    env?: {
-      VITE_TEST_MODE?: string;
-      [key: string]: any;
-    };
-  }
-}
-
 const rootElement = document.getElementById("root");
 
 if (rootElement) {

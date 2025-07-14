@@ -1,10 +1,9 @@
-// src/store/userSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { UserData, Referal, Rank } from "../Interfaces";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { initialTasks, ranks } from "../Data";
-import { RootState, useAppDispatch, useAppSelector } from "./index";
+import { RootState } from "./index";
 import { updateBalance } from "./gameSlice";
 
 export const fetchUserData = createAsyncThunk(
@@ -29,7 +28,6 @@ export const fetchUserData = createAsyncThunk(
 
       if (userDoc.exists()) {
         const userData = userDoc.data() as UserData;
-        // Синхронизируем balance в gameSlice
         dispatch(updateBalance(userData.balance));
         return userData;
       } else {
@@ -49,11 +47,11 @@ export const fetchUserData = createAsyncThunk(
           location: "1stSea",
         };
         await setDoc(userDocRef, newUser);
-        // Синхронизируем balance для нового пользователя
         dispatch(updateBalance(newUser.balance));
         return newUser;
       }
     } catch (err) {
+      console.error("Failed to fetch user data:", err);
       return rejectWithValue((err as Error).message);
     }
   }
@@ -68,12 +66,8 @@ export const saveGameData = createAsyncThunk(
     const tasks = state.tasks.tasks;
 
     if (!user || user.id === "test_user_123") {
+      console.log("Skipping saveGameData: no user or test mode");
       return;
-    }
-
-    // Проверяем, что пользователь загружен
-    if (state.user.isLoading) {
-      return rejectWithValue("User data is still loading");
     }
 
     try {
@@ -88,9 +82,11 @@ export const saveGameData = createAsyncThunk(
         lastInteraction: new Date().toISOString(),
       };
 
-      console.log("Saving to Firestore:", userDataToUpdate); // Логи для отладки
+      console.log("Saving to Firestore:", userDataToUpdate);
       await setDoc(userDocRef, userDataToUpdate, { merge: true });
+      console.log("Successfully saved to Firestore:", userDataToUpdate);
     } catch (error) {
+      console.error("Failed to save game data:", error);
       return rejectWithValue("Failed to save game data");
     }
   }

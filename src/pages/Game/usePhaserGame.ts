@@ -46,7 +46,7 @@ export function usePhaserGame(
     }>
   >([]);
   const lastVisibleCountRef = useRef<number | null>(null);
-  const isTestMode = window.env?.VITE_TEST_MODE === "true";
+  const isTestMode = false; // Set to true for testing purposes
 
   useEffect(() => {
     const config: Phaser.Types.Core.GameConfig = {

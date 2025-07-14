@@ -1,4 +1,3 @@
-// src/pages/Game/utils.ts
 import Phaser from "phaser";
 import { Rank, ChestData } from "../../Interfaces";
 import { AppDispatch } from "../../store";
@@ -61,12 +60,12 @@ export function handleBoatClick(
       lastEnergyUpdateRef.current = currentTime;
 
       syncDisplayEnergy();
-      dispatch({
+      await dispatch({
         type: "game/updateEnergy",
         payload: { energy: energyRef.current, time: currentTime },
       });
       await dispatch({ type: "game/incrementBalance", payload: points });
-      await dispatch({ type: "user/saveGameData" }); // Ждём завершения
+      await dispatch({ type: "user/saveGameData" }); // Сохраняем сразу
 
       setClickQueue((prev) => [
         ...prev,
@@ -81,29 +80,6 @@ export function handleBoatClick(
       );
     }
   );
-}
-
-export function processClickQueue(
-  clickQueue: { type: string; points: number; energyAtClick: number }[],
-  setClickQueue: React.Dispatch<
-    React.SetStateAction<
-      { type: string; points: number; energyAtClick: number }[]
-    >
-  >,
-  isTestMode: boolean
-) {
-  if (clickQueue.length === 0) return;
-
-  // В тестовом режиме просто очищаем очередь
-  if (isTestMode) {
-    console.log("Test mode: Clearing clickQueue", clickQueue);
-    setClickQueue([]);
-    return;
-  }
-
-  // В обычном режиме предполагается, что saveGameData уже обработал данные
-  console.log("Processing clickQueue:", clickQueue);
-  setClickQueue([]);
 }
 
 export function handleChestClick(
@@ -149,7 +125,7 @@ export function handleChestClick(
     });
 
     await dispatch({ type: "game/incrementBalance", payload: points });
-    await dispatch({ type: "user/saveGameData" });
+    await dispatch({ type: "user/saveGameData" }); // Сохраняем сразу
 
     const currentTime = Date.now();
     const updatedChest: ChestData = {
@@ -244,4 +220,31 @@ export function handleChestClick(
       },
     });
   });
+}
+
+export function processClickQueue(
+  clickQueue: { type: string; points: number; energyAtClick: number }[],
+  setClickQueue: React.Dispatch<
+    React.SetStateAction<
+      { type: string; points: number; energyAtClick: number }[]
+    >
+  >,
+  isTestMode: boolean,
+  dispatch: AppDispatch
+) {
+  if (clickQueue.length === 0) return;
+
+  if (isTestMode) {
+    console.log("Test mode: Clearing clickQueue", clickQueue);
+    setClickQueue([]);
+    return;
+  }
+
+  console.log("Processing clickQueue:", clickQueue);
+  console.log(
+    "Total points to save:",
+    clickQueue.reduce((sum, click) => sum + click.points, 0)
+  );
+  // Не вызываем saveGameData, так как оно уже вызывается в handleBoatClick и handleChestClick
+  setClickQueue([]);
 }

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { useAppSelector } from "../../store";
+import { useAppSelector, useAppDispatch } from "../../store";
 import Header from "../../components/Header/Header";
 import EnergyBar from "../../components/Common/EnergyBar/EnergyBar";
 import useEnergy from "./useEnergy";
@@ -13,7 +13,8 @@ function Game() {
   const currentRank = useAppSelector((state) => state.game.rank);
   const maxEnergy = useAppSelector((state) => state.game.maxEnergy);
   const balance = useAppSelector((state) => state.game.balance);
-  const isTestMode = window.env?.VITE_TEST_MODE === "true";
+  const isTestMode = false;
+  const dispatch = useAppDispatch(); // Добавляем dispatch
 
   const baseWidth = window.innerWidth;
   const baseHeight = window.innerHeight - 100;
@@ -47,10 +48,11 @@ function Game() {
     setClickQueue
   );
   useVisibilitySync(energyRef, lastUpdateRef, syncDisplay, maxEnergy);
+
   useEffect(() => {
     // Обрабатываем очередь кликов
-    processClickQueue(clickQueue, setClickQueue, isTestMode);
-  }, [clickQueue, isTestMode]);
+    processClickQueue(clickQueue, setClickQueue, isTestMode, dispatch);
+  }, [clickQueue, isTestMode, dispatch]);
 
   useEffect(() => {
     const handleResize = () => {
