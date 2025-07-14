@@ -12,8 +12,6 @@ export default function useEnergy(maxEnergy: number) {
   const userId = useAppSelector(
     (state) => state.user.user?.id ?? "test_user_123"
   );
-  const isTestMode = false; // Set to true for testing purposes
-
   const energyRef = useRef(energy);
   const lastUpdateRef = useRef(lastUpdate);
   const [displayEnergy, setDisplayEnergy] = useState(energy);
@@ -29,6 +27,10 @@ export default function useEnergy(maxEnergy: number) {
         JSON.stringify({ energy, lastEnergyUpdate: updateTime }),
         { expires: 7 }
       );
+      console.log("Energy saved to cookies:", {
+        energy,
+        lastEnergyUpdate: updateTime,
+      });
     } catch (err) {
       console.error("Failed to save energy to cookies:", err);
     }

@@ -94,7 +94,7 @@ export const saveGameData = createAsyncThunk(
     const { balance, energy, lastEnergyUpdate, rank, location } = state.game;
     const tasks = state.tasks.tasks;
 
-    if (!user || user.id === "test_user_123") {
+    if (!user) {
       console.log("Skipping saveGameData: no user or test mode");
       return;
     }

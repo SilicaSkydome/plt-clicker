@@ -5,7 +5,8 @@ import { saveChestData } from "./useChests";
 import { chestTextures, ringTextures } from "./config";
 import { saveGameData } from "../../store/userSlice";
 import { increment } from "firebase/firestore";
-import { incrementBalance } from "../../store/gameSlice";
+import { incrementBalance, updateEnergy } from "../../store/gameSlice";
+import { update } from "lodash";
 
 export function handleBoatClick(
   boatRef: Phaser.GameObjects.Image,
@@ -63,12 +64,11 @@ export function handleBoatClick(
       lastEnergyUpdateRef.current = currentTime;
 
       syncDisplayEnergy();
-      await dispatch({
-        type: "game/updateEnergy",
-        payload: { energy: energyRef.current, time: currentTime },
-      });
-      await dispatch({ type: "game/incrementBalance", payload: points });
-      await dispatch({ type: "user/saveGameData" }); // Сохраняем сразу
+      await dispatch(
+        updateEnergy({ energy: energyRef.current, time: currentTime })
+      );
+      await dispatch(incrementBalance(points));
+      await dispatch(saveGameData());
 
       setClickQueue((prev) => [
         ...prev,
