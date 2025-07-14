@@ -16,10 +16,13 @@ const ProgressBar = () => {
 
   return (
     <div className="progressBarWrapper">
-      <div className="progressLabel">
-        {nextRank?.goldMax
-          ? `Next rank: ${nextRank.title} at ${nextRank.goldMax}`
-          : "Highest rank achieved!"}
+      <div className="label">
+        {nextRank
+          ? `Next rank in: ${Math.max(
+              0,
+              (nextRank.goldMax ?? 0) - balance
+            ).toFixed(0)}`
+          : "Max Rank"}
       </div>
       <div className="progressBar">
         <div

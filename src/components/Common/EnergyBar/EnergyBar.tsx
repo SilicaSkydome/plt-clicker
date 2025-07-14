@@ -14,9 +14,6 @@ const EnergyBar = () => {
       <div className="energyBar">
         <div className="energyFill" style={{ width: `${percentage}%` }} />
       </div>
-      <span className="energyText">
-        {energy}/{maxEnergy}
-      </span>
     </div>
   );
 };

@@ -11,6 +11,7 @@ import bankIcon from "../../assets/img/TOKEN.svg";
 import mapIcon from "../../assets/img/Compass.svg";
 import { useClickAway } from "@uidotdev/usehooks";
 import { updateBalance } from "../../store/gameSlice";
+import ProgressBar from "../Common/ProgressBar/ProgressBar";
 
 const Header = () => {
   const user = useAppSelector((state) => state.user.user);
@@ -48,6 +49,7 @@ const Header = () => {
         </div>
         <div className="headerItem compass" onClick={goToMap}>
           <img src={mapIcon} alt="Map" className="headerIcon" />
+          <ProgressBar />
         </div>
         <div className="headerItem balance">
           <img

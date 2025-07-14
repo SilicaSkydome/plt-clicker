@@ -1,4 +1,4 @@
-.energyBar {
+.energyBarWrapper {
   width: 100%;
   padding: 10px;
   box-sizing: border-box;
@@ -10,7 +10,7 @@
   z-index: 10; /* Убедимся, что бар отображается поверх игрового контейнера */
 }
 
-.energyBar::after {
+.energyBarWrapper::after {
   content: url("../../../assets/img/battery-charging.svg");
   position: relative;
   width: 22px;
@@ -20,7 +20,7 @@
   left: -42%;
 }
 
-.energyBar-container {
+.energyBar {
   width: 90%;
   height: 10px;
   background-color: #846731; /* Серый фон для пустой части */
@@ -28,7 +28,7 @@
   overflow: hidden;
 }
 
-.energyBar-fill {
+.energyFill {
   height: 100%;
   background: linear-gradient(266.75deg, #f9d663 7.87%, #b48d0a 86.9%);
   transition: width 0.3s ease-in-out; /* Плавная анимация изменения прогресса */

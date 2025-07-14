@@ -56,6 +56,14 @@
 }
 .compass {
   flex: 1;
+  position: relative;
+}
+.compass img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
 }
 .balance {
   flex: 1;
