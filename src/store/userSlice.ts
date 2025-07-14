@@ -9,10 +9,9 @@ import { updateBalance } from "./gameSlice";
 
 export const fetchUserData = createAsyncThunk(
   "user/fetchUserData",
-  async (telegramUser: any, { rejectWithValue }) => {
+  async (telegramUser: any, { rejectWithValue, dispatch }) => {
     try {
       if (!telegramUser) {
-        // Тестовый пользователь для браузера
         telegramUser = {
           id: "test_user_123",
           first_name: "Dev",
@@ -30,7 +29,8 @@ export const fetchUserData = createAsyncThunk(
 
       if (userDoc.exists()) {
         const userData = userDoc.data() as UserData;
-
+        // Синхронизируем balance в gameSlice
+        dispatch(updateBalance(userData.balance));
         return userData;
       } else {
         const newUser: UserData = {
@@ -49,6 +49,8 @@ export const fetchUserData = createAsyncThunk(
           location: "1stSea",
         };
         await setDoc(userDocRef, newUser);
+        // Синхронизируем balance для нового пользователя
+        dispatch(updateBalance(newUser.balance));
         return newUser;
       }
     } catch (err) {
@@ -69,6 +71,11 @@ export const saveGameData = createAsyncThunk(
       return;
     }
 
+    // Проверяем, что пользователь загружен
+    if (state.user.isLoading) {
+      return rejectWithValue("User data is still loading");
+    }
+
     try {
       const userDocRef = doc(db, "userData", user.id);
       const tasksToSave = tasks;
@@ -81,6 +88,7 @@ export const saveGameData = createAsyncThunk(
         lastInteraction: new Date().toISOString(),
       };
 
+      console.log("Saving to Firestore:", userDataToUpdate); // Логи для отладки
       await setDoc(userDocRef, userDataToUpdate, { merge: true });
     } catch (error) {
       return rejectWithValue("Failed to save game data");

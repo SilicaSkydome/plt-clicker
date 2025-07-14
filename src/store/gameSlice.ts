@@ -24,6 +24,7 @@ const gameSlice = createSlice({
   initialState,
   reducers: {
     updateBalance(state, action: PayloadAction<number>) {
+      console.log("Updating balance in gameSlice:", action.payload);
       state.balance = action.payload;
     },
     updateEnergy(
@@ -37,6 +38,7 @@ const gameSlice = createSlice({
       state.rank = action.payload;
     },
     incrementBalance(state, action: PayloadAction<number>) {
+      console.log("Incrementing balance in gameSlice:", action.payload);
       state.balance += action.payload;
     },
     setMaxEnergy(state, action: PayloadAction<number>) {

@@ -1,3 +1,4 @@
+// src/pages/Game/utils.ts
 import Phaser from "phaser";
 import { Rank, ChestData } from "../../Interfaces";
 import { AppDispatch } from "../../store";
@@ -23,7 +24,7 @@ export function handleBoatClick(
 
   boatRef.on(
     "pointerdown",
-    (
+    async (
       pointer: Phaser.Input.Pointer,
       localX: number,
       localY: number,
@@ -64,8 +65,8 @@ export function handleBoatClick(
         type: "game/updateEnergy",
         payload: { energy: energyRef.current, time: currentTime },
       });
-      dispatch({ type: "game/incrementBalance", payload: points });
-      dispatch({ type: "user/saveGameData" });
+      await dispatch({ type: "game/incrementBalance", payload: points });
+      await dispatch({ type: "user/saveGameData" }); // Ждём завершения
 
       setClickQueue((prev) => [
         ...prev,
@@ -80,6 +81,29 @@ export function handleBoatClick(
       );
     }
   );
+}
+
+export function processClickQueue(
+  clickQueue: { type: string; points: number; energyAtClick: number }[],
+  setClickQueue: React.Dispatch<
+    React.SetStateAction<
+      { type: string; points: number; energyAtClick: number }[]
+    >
+  >,
+  isTestMode: boolean
+) {
+  if (clickQueue.length === 0) return;
+
+  // В тестовом режиме просто очищаем очередь
+  if (isTestMode) {
+    console.log("Test mode: Clearing clickQueue", clickQueue);
+    setClickQueue([]);
+    return;
+  }
+
+  // В обычном режиме предполагается, что saveGameData уже обработал данные
+  console.log("Processing clickQueue:", clickQueue);
+  setClickQueue([]);
 }
 
 export function handleChestClick(
@@ -104,7 +128,7 @@ export function handleChestClick(
     }>
   >
 ) {
-  chestSprite.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+  chestSprite.on("pointerdown", async (pointer: Phaser.Input.Pointer) => {
     const points = Math.floor(Math.random() * (10 - 3 + 1)) + 3;
 
     // Add visual feedback
@@ -124,8 +148,8 @@ export function handleChestClick(
       onComplete: () => plusText.destroy(),
     });
 
-    dispatch({ type: "game/incrementBalance", payload: points });
-    dispatch({ type: "user/saveGameData" });
+    await dispatch({ type: "game/incrementBalance", payload: points });
+    await dispatch({ type: "user/saveGameData" });
 
     const currentTime = Date.now();
     const updatedChest: ChestData = {
@@ -157,7 +181,6 @@ export function handleChestClick(
             .setDepth(3)
             .setScale(0.05 * scaleFactor);
 
-          // Create new rings for the respawned chest
           const newRings: Phaser.GameObjects.Sprite[] = [];
           Object.values(ringTextures).forEach((key, index) => {
             const ring = currentSceneRef.add
@@ -221,27 +244,4 @@ export function handleChestClick(
       },
     });
   });
-}
-
-export function processClickQueue(
-  clickQueue: { type: string; points: number; energyAtClick: number }[],
-  setClickQueue: React.Dispatch<
-    React.SetStateAction<
-      { type: string; points: number; energyAtClick: number }[]
-    >
-  >,
-  isTestMode: boolean
-) {
-  if (clickQueue.length === 0) return;
-
-  // В тестовом режиме просто очищаем очередь
-  if (isTestMode) {
-    console.log("Test mode: Clearing clickQueue", clickQueue);
-    setClickQueue([]);
-    return;
-  }
-
-  // В обычном режиме предполагается, что saveGameData уже обработал данные
-  console.log("Processing clickQueue:", clickQueue);
-  setClickQueue([]);
 }
