@@ -7,7 +7,7 @@
   position: relative;
   margin-top: 20px;
 }
-.earnSection {
+.earnPanel {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -27,7 +27,7 @@
   );
   border-image-slice: 1;
 
-  padding: 20px 0;
+  padding: 20px 10px;
 
   width: 90%;
 }
@@ -63,61 +63,7 @@
 
   color: #5e5e5e;
 }
-
-.quest {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: stretch;
-  width: 100%;
-}
-.questContent {
-  display: flex;
-  flex-direction: row;
-  justify-content: start;
-  margin-left: 10px;
-  align-items: center;
-  gap: 10px;
-}
-.questInfo {
-  display: flex;
-  flex-direction: column;
-  justify-content: start;
-  align-items: start;
-  gap: 5px;
-
-  padding: 0 10px;
-}
-.questInfo h3 {
-  font-family: "Inter", sans-serif;
-  font-size: 12px;
-  margin: 0;
-}
-.questInfo p {
-  margin: 0;
-}
-.questButton {
-  margin-right: 10px;
-
-  border-radius: 30px;
-  margin: 5px 10px;
-
-  background: linear-gradient(360deg, #f1d781 -1.72%, #5c5231 98.28%),
-    linear-gradient(355.58deg, #f9d663 11.33%, #b48d0a 94.62%),
-    radial-gradient(
-      52.53% 99.05% at 47.47% 101.69%,
-      #ffffff 0%,
-      rgba(147, 125, 36, 0) 100%
-    );
-
-  border: 1px solid #f9d663;
-}
-.questIcon {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.questIcon img {
-  width: 24;
-  height: 24;
+.questsList {
+  width: 90%;
+  position: relative;
 }
