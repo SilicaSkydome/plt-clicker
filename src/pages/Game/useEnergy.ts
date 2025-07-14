@@ -20,22 +20,6 @@ export default function useEnergy(maxEnergy: number) {
     setDisplayEnergy(energyRef.current);
   };
 
-  const saveToCookies = (energy: number, updateTime: number) => {
-    try {
-      Cookies.set(
-        `energy_${userId}`,
-        JSON.stringify({ energy, lastEnergyUpdate: updateTime }),
-        { expires: 7 }
-      );
-      console.log("Energy saved to cookies:", {
-        energy,
-        lastEnergyUpdate: updateTime,
-      });
-    } catch (err) {
-      console.error("Failed to save energy to cookies:", err);
-    }
-  };
-
   const loadFromCookies = () => {
     try {
       const cookie = Cookies.get(`energy_${userId}`);
@@ -82,7 +66,6 @@ export default function useEnergy(maxEnergy: number) {
         syncDisplay();
         dispatch(updateEnergy({ energy: newEnergy, time: now }));
         dispatch(saveGameData());
-        saveToCookies(newEnergy, now);
       }
     }, 1000);
 
