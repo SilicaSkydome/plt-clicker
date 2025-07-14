@@ -27,14 +27,7 @@ function Game() {
     { type: string; points: number; energyAtClick: number }[]
   >([]);
 
-  console.log(
-    "Game component rendered, user:",
-    user,
-    "balance:",
-    balance,
-    "clickQueue:",
-    clickQueue
-  );
+  console.log("Game component rendered, user:", user);
 
   const { boatRef, gameInstance, currentSceneRef, chestsRef } = usePhaserGame(
     gameRef,

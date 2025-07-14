@@ -1,6 +1,5 @@
 // pages/Game/useEnergy.ts
 import { useEffect, useRef, useState } from "react";
-import Cookies from "js-cookie";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { updateEnergy } from "../../store/gameSlice";
 import { saveGameData } from "../../store/userSlice";
@@ -20,26 +19,9 @@ export default function useEnergy(maxEnergy: number) {
     setDisplayEnergy(energyRef.current);
   };
 
-  const loadFromCookies = () => {
-    try {
-      const cookie = Cookies.get(`energy_${userId}`);
-      if (!cookie) return null;
-      const parsed = JSON.parse(cookie);
-      return parsed.energy && parsed.lastEnergyUpdate ? parsed : null;
-    } catch {
-      return null;
-    }
-  };
-
   useEffect(() => {
-    const cookie = loadFromCookies();
     let baseEnergy = energy;
     let baseTime = lastUpdate;
-
-    if (cookie) {
-      baseEnergy = cookie.energy;
-      baseTime = cookie.lastEnergyUpdate;
-    }
 
     const now = Date.now();
     const elapsed = (now - baseTime) / 1000;

@@ -3,10 +3,8 @@ import { Rank, ChestData } from "../../Interfaces";
 import { AppDispatch } from "../../store";
 import { saveChestData } from "./useChests";
 import { chestTextures, ringTextures } from "./config";
-import { saveGameData } from "../../store/userSlice";
-import { increment } from "firebase/firestore";
+import { saveGameData, updateUser } from "../../store/userSlice";
 import { incrementBalance, updateEnergy } from "../../store/gameSlice";
-import { update } from "lodash";
 
 export function handleBoatClick(
   boatRef: Phaser.GameObjects.Image,
@@ -62,11 +60,13 @@ export function handleBoatClick(
       energyRef.current = Math.max(energyRef.current - 1, 0);
       const currentTime = Date.now();
       lastEnergyUpdateRef.current = currentTime;
+      console.log("Boat clicked, points:", points, "energy:", energyAtClick);
 
       syncDisplayEnergy();
       await dispatch(
         updateEnergy({ energy: energyRef.current, time: currentTime })
       );
+      await dispatch(updateUser({ energy: energyRef.current }));
       await dispatch(incrementBalance(points));
       await dispatch(saveGameData());
 
