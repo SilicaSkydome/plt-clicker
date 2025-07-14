@@ -4,6 +4,8 @@ import { AppDispatch } from "../../store";
 import { saveChestData } from "./useChests";
 import { chestTextures, ringTextures } from "./config";
 import { saveGameData } from "../../store/userSlice";
+import { increment } from "firebase/firestore";
+import { incrementBalance } from "../../store/gameSlice";
 
 export function handleBoatClick(
   boatRef: Phaser.GameObjects.Image,
@@ -125,8 +127,8 @@ export function handleChestClick(
       onComplete: () => plusText.destroy(),
     });
 
-    await dispatch({ type: "game/incrementBalance", payload: points });
-    await dispatch({ type: "user/saveGameData" }); // Сохраняем сразу
+    await dispatch(incrementBalance(points));
+    await dispatch(saveGameData()); // Сохраняем сразу
 
     const currentTime = Date.now();
     const updatedChest: ChestData = {
