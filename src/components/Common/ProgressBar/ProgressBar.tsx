@@ -22,7 +22,7 @@ const ProgressBar = () => {
               0,
               (nextRank.goldMax ?? 0) - balance
             ).toFixed(0)}`
-          : "Max Rank"}
+          : "Captain"}
       </div>
       <div className="progressBar">
         <div

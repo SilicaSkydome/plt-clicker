@@ -17,7 +17,6 @@ const QuestCard: React.FC<QuestCardProps> = ({ task, onClick }) => {
         <div className="questInfo">
           <h3 className="questTitle">{task.title}</h3>
           <p className="questDesc">{task.description}</p>
-          <span className="questPoints">+{task.points} pts</span>
         </div>
       </div>
       <button

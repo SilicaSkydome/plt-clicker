@@ -16,6 +16,7 @@
     "@telegram-auth/react": "^1.0.4",
     "@twa-dev/sdk": "^8.0.2",
     "@uidotdev/usehooks": "^2.4.1",
+    "buffer": "^6.0.3",
     "express": "^4.21.2",
     "firebase": "^11.6.0",
     "firebase-functions": "^6.3.2",
@@ -27,6 +28,9 @@
     "react-hot-toast": "^2.5.2",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.3.0",
+    "ton": "^13.9.0",
+    "ton-core": "^0.53.0",
+    "ton-crypto": "^3.2.0",
     "vite-plugin-node": "^5.0.0"
   },
   "devDependencies": {
