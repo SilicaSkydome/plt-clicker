@@ -151,7 +151,7 @@ export function usePhaserGame(
 
           do {
             x = boatX + (Math.random() - 0.5) * maxDistance * 2;
-            y = boatY + (Math.random() - 0.5) * maxDistance;
+            y = boatY + (Math.random() - 0.5) * maxDistance * 0.8;
             distance = Math.sqrt((x - boatX) ** 2 + (y - boatY) ** 2);
             attempts++;
           } while (
