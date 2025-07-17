@@ -11,6 +11,7 @@ import SessionBlocked from "./components/Common/SessionBlocked/SessionBlocked";
 import AppContent from "./AppContent";
 import { useAppDispatch, useAppSelector } from "./store";
 import "./App.css";
+import { TonConnectUIProvider } from "@tonconnect/ui-react";
 
 const App = () => {
   const dispatch = useAppDispatch();
@@ -46,7 +47,14 @@ const App = () => {
   return isSessionBlocked ? (
     <SessionBlocked />
   ) : (
-    <Router>{!isLoading && <AppContent />}</Router>
+    <Router>
+      <TonConnectUIProvider
+        manifestUrl="https://pltclicker.netlify.app/tonconnect-manifest.json"
+        actionsConfiguration={{ twaReturnUrl: "https://t.me/pltc_bot" }}
+      >
+        {!isLoading && <AppContent />}
+      </TonConnectUIProvider>
+    </Router>
   );
 };
 
