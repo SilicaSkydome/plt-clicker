@@ -58,12 +58,12 @@ const AppContent = () => {
 
   const dispatch = useAppDispatch();
 
-  useEffect(() => {
-    if (user) {
-      console.log("Syncing gameSlice balance with user.balance:", user.balance);
-      dispatch(updateBalance(user.balance));
-    }
-  }, [user, dispatch]);
+  // useEffect(() => {
+  //   if (user) {
+  //     console.log("Syncing gameSlice balance with user.balance:", user.balance);
+  //     dispatch(updateBalance(user.balance));
+  //   }
+  // }, [user, dispatch]);
 
   return (
     <div className={`app ${bgClass()}`}>

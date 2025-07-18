@@ -28,6 +28,7 @@ const gameSlice = createSlice({
     updateBalance(state, action: PayloadAction<number>) {
       console.log("Updating balance in gameSlice:", action.payload);
       state.balance = action.payload;
+      state.balance = Number(state.balance.toFixed(2));
     },
     updateEnergy(
       state,
@@ -40,8 +41,13 @@ const gameSlice = createSlice({
       state.rank = action.payload;
     },
     incrementBalance(state, action: PayloadAction<number>) {
-      console.log("Incrementing balance in gameSlice:", action.payload);
       state.balance += action.payload;
+      state.balance = Number(state.balance.toFixed(2)); // Ensure balance is a fixed decimal
+      console.log(
+        "Incremented balance in gameSlice:",
+        action.payload,
+        state.balance
+      );
     },
     setMaxEnergy(state, action: PayloadAction<number>) {
       state.maxEnergy = action.payload;

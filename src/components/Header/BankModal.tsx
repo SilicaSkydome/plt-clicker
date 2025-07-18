@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useAppSelector, useAppDispatch } from "../../store";
 import { formatBalance } from "./utils";
 import { TonConnectButton, useTonConnectUI } from "@tonconnect/ui-react";
-import { updateBalance } from "../../store/gameSlice"; // Предполагаемый action
+import { updateBalance } from "../../store/gameSlice";
 import "./Header.css";
 
 interface Props {
@@ -14,14 +14,15 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
   const dispatch = useAppDispatch();
   const balance = useAppSelector((state) => state.game.balance);
   const [tonConnectUI] = useTonConnectUI();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState("1");
   const [currency, setCurrency] = useState("USDT");
 
   const currencies = ["USDT", "TON", "JETTON"];
+  const amounts = ["1", "5", "10", "20", "50", "100"];
 
   const handleDonate = async () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      alert("Введите корректную сумму");
+    if (!amount) {
+      alert("Выберите сумму");
       return;
     }
 
@@ -30,8 +31,8 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
         validUntil: Math.floor(Date.now() / 1000) + 60,
         messages: [
           {
-            address: "YOUR_GAME_WALLET_ADDRESS", // Укажи адрес кошелька игры
-            amount: (Number(amount) * 1e9).toString(), // Конвертация в нанотоны
+            address: "YOUR_GAME_WALLET_ADDRESS",
+            amount: (Number(amount) * 1e9).toString(),
             payload: btoa(`Donate:${amount}:${currency}`),
           },
         ],
@@ -39,12 +40,11 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
 
       await tonConnectUI.sendTransaction(transaction);
 
-      // Предполагаемый курс: 1 USDT/TON = 100 золота (уточни, если иначе)
       const goldAmount = Number(amount) * 100;
       dispatch(updateBalance(balance + goldAmount));
 
       alert("Донат успешно отправлен!");
-      setAmount("");
+      setAmount("1");
     } catch (error) {
       console.error("Ошибка транзакции:", error);
       alert("Ошибка при отправке доната");
@@ -71,13 +71,17 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
       </div>
       <div className="bankModalField">
         <label>Сумма</label>
-        <input
-          type="number"
+        <select
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder="Введите сумму"
-          className="bankModalInput"
-        />
+          className="bankModalSelect"
+        >
+          {amounts.map((amt) => (
+            <option key={amt} value={amt}>
+              {amt} {currency}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="bankModalField">
         <TonConnectButton />

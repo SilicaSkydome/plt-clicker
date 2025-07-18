@@ -66,21 +66,14 @@ export function handleBoatClick(
       await dispatch(
         updateEnergy({ energy: energyRef.current, time: currentTime })
       );
-      await dispatch(updateUser({ energy: energyRef.current }));
       await dispatch(incrementBalance(points));
+      await dispatch(updateUser({ energy: energyRef.current }));
       await dispatch(saveGameData());
 
       setClickQueue((prev) => [
         ...prev,
         { type: "boat", points, energyAtClick },
       ]);
-
-      console.log(
-        "Boat clicked, points added:",
-        points,
-        "energy:",
-        energyRef.current
-      );
     }
   );
 }
