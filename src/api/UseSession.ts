@@ -98,7 +98,6 @@ const useSession = (userId: string) => {
           await updateDoc(sessionRef, {
             timestamp: new Date().toISOString(),
           });
-          console.log("Heartbeat обновлён", { sessionId: newSessionId });
         }
       }, HEARTBEAT_INTERVAL);
     };

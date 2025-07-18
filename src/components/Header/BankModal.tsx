@@ -10,87 +10,102 @@ interface Props {
   ref?: any;
 }
 
+interface DonationOption {
+  currency: string;
+  amount: number;
+  gold: number;
+}
+
 const BankModal: React.FC<Props> = ({ onClose, ref }) => {
   const dispatch = useAppDispatch();
   const balance = useAppSelector((state) => state.game.balance);
   const [tonConnectUI] = useTonConnectUI();
-  const [amount, setAmount] = useState("1");
-  const [currency, setCurrency] = useState("USDT");
+  const [error, setError] = useState<string | null>(null);
 
-  const currencies = ["USDT", "TON", "JETTON"];
-  const amounts = ["1", "5", "10", "20", "50", "100"];
+  const donationOptions: DonationOption[] = [
+    { currency: "USDT", amount: 1, gold: 100 },
+    { currency: "USDT", amount: 5, gold: 500 },
+    { currency: "USDT", amount: 10, gold: 1000 },
+    { currency: "TON", amount: 1, gold: 80 },
+    { currency: "TON", amount: 5, gold: 400 },
+    { currency: "JETTON", amount: 20, gold: 1500 },
+  ];
 
-  const handleDonate = async () => {
-    if (!amount) {
-      alert("Выберите сумму");
-      return;
-    }
-
+  const handleDonate = async (option: DonationOption) => {
     try {
+      if (!tonConnectUI.connected) {
+        setError("Please connect your wallet first");
+        return;
+      }
+
       const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 60,
         messages: [
           {
-            address: "YOUR_GAME_WALLET_ADDRESS",
-            amount: (Number(amount) * 1e9).toString(),
-            payload: btoa(`Donate:${amount}:${currency}`),
+            address: "YOUR_GAME_WALLET_ADDRESS", // Замените на реальный адрес кошелька
+            amount: (option.amount * 1e9).toString(), // Конвертация в нанотоны
+            payload: btoa(`Donate:${option.amount}:${option.currency}`),
           },
         ],
       };
 
+      console.log("Sending transaction:", transaction);
       await tonConnectUI.sendTransaction(transaction);
 
-      const goldAmount = Number(amount) * 100;
-      dispatch(updateBalance(balance + goldAmount));
-
-      alert("Донат успешно отправлен!");
-      setAmount("1");
+      dispatch(updateBalance(balance + option.gold));
+      console.log(
+        `Added ${option.gold} gold for ${option.amount} ${option.currency}`
+      );
+      alert(
+        `Successfully donated ${option.amount} ${option.currency}! Added ${option.gold} gold.`
+      );
     } catch (error) {
-      console.error("Ошибка транзакции:", error);
-      alert("Ошибка при отправке доната");
+      console.error("Transaction error:", error);
+      setError(`Error while sending donation: ${(error as Error).message}`);
     }
   };
 
   return (
     <div className="bankModal" ref={ref}>
-      <h2>Пополнить золото</h2>
-      <p className="walletBalance">Текущий баланс: {formatBalance(balance)}</p>
-      <div className="bankModalField">
-        <label>Валюта</label>
-        <select
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-          className="bankModalSelect"
-        >
-          {currencies.map((curr) => (
-            <option key={curr} value={curr}>
-              {curr}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="bankModalField">
-        <label>Сумма</label>
-        <select
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="bankModalSelect"
-        >
-          {amounts.map((amt) => (
-            <option key={amt} value={amt}>
-              {amt} {currency}
-            </option>
-          ))}
-        </select>
-      </div>
+      <h2>Top up gold</h2>
+      <p className="walletBalance">Current balance: {formatBalance(balance)}</p>
       <div className="bankModalField">
         <TonConnectButton />
       </div>
-      <button className="bankModalBtn" onClick={handleDonate}>
-        Пополнить
-      </button>
+      {error && (
+        <p className="error" style={{ color: "red" }}>
+          {error}
+        </p>
+      )}
+      <div
+        className="donationTiles"
+        style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}
+      >
+        {donationOptions.map((option, index) => (
+          <div
+            key={index}
+            className="donationTile"
+            style={{
+              border: "1px solid #ccc",
+              padding: "10px",
+              borderRadius: "5px",
+            }}
+          >
+            <p>
+              {option.gold} Gold for {option.amount} {option.currency}
+            </p>
+            <button
+              className="donateBtn"
+              onClick={() => handleDonate(option)}
+              disabled={!tonConnectUI.connected}
+            >
+              Donate
+            </button>
+          </div>
+        ))}
+      </div>
       <button className="closeBtn" onClick={onClose}>
-        Закрыть
+        Close
       </button>
     </div>
   );
