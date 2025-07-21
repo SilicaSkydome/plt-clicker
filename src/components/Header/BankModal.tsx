@@ -42,7 +42,7 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
         validUntil: Math.floor(Date.now() / 1000) + 60,
         messages: [
           {
-            address: "YOUR_GAME_WALLET_ADDRESS", // Замените на реальный адрес кошелька
+            address: "UQBPyg8CUlZj-awtwD0gvYPU1M2g8CxkJ6QcSAzNbxEzJ1H5", // Замените на реальный адрес кошелька
             amount: (option.amount * 1e9).toString(), // Конвертация в нанотоны
             payload: btoa(`Donate:${option.amount}:${option.currency}`),
           },
