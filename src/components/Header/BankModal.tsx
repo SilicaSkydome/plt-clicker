@@ -28,84 +28,79 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
     { currency: "USDT", amount: 10, gold: 1000 },
     { currency: "TON", amount: 1, gold: 80 },
     { currency: "TON", amount: 5, gold: 400 },
-    { currency: "JETTON", amount: 20, gold: 1500 },
   ];
 
   const handleDonate = async (option: DonationOption) => {
     try {
       if (!tonConnectUI.connected) {
-        setError("Please connect your wallet first");
+        setError("Подключите кошелёк");
         return;
+      }
+
+      let address = "UQBPyg8CUlZj-awtwD0gvYPU1M2g8CxkJ6QcSAzNbxEzJ1H5"; // Твой кошелёк для TON
+      let amount = (option.amount * 1e9).toString(); // TON: 9 decimals
+      let payload: string | undefined = undefined;
+
+      if (option.currency === "USDT") {
+        address = "EQCxE6mUtQJKFnGfaROTKOt1lzbY6CpTq3ppB4-CgH9B_wkZ"; // USDT смарт-контракт
+        amount = "10000000"; // Минимальный TON для комиссии (0.01 TON), вместо USDT-суммы
+        payload = undefined; // Временно убираем payload
       }
 
       const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 60,
         messages: [
           {
-            address: "UQBPyg8CUlZj-awtwD0gvYPU1M2g8CxkJ6QcSAzNbxEzJ1H5", // Замените на реальный адрес кошелька
-            amount: (option.amount * 1e9).toString(), // Конвертация в нанотоны
-            payload: btoa(`Donate:${option.amount}:${option.currency}`),
+            address,
+            amount,
+            payload,
           },
         ],
       };
 
-      console.log("Sending transaction:", transaction);
+      console.log("Отправка транзакции:", transaction);
       await tonConnectUI.sendTransaction(transaction);
 
       dispatch(updateBalance(balance + option.gold));
       console.log(
-        `Added ${option.gold} gold for ${option.amount} ${option.currency}`
+        `Добавлено ${option.gold} золота за ${option.amount} ${option.currency}`
       );
       alert(
-        `Successfully donated ${option.amount} ${option.currency}! Added ${option.gold} gold.`
+        `Успешно отправлено ${option.amount} ${option.currency}! Добавлено ${option.gold} золота.`
       );
+      setError(null);
     } catch (error) {
-      console.error("Transaction error:", error);
-      setError(`Error while sending donation: ${(error as Error).message}`);
+      console.error("Ошибка транзакции:", error);
+      setError(`Ошибка при отправке: ${(error as Error).message}`);
     }
   };
 
   return (
     <div className="bankModal" ref={ref}>
-      <h2>Top up gold</h2>
-      <p className="walletBalance">Current balance: {formatBalance(balance)}</p>
+      <h2>Пополнить золото</h2>
+      <p className="walletBalance">Текущий баланс: {formatBalance(balance)}</p>
       <div className="bankModalField">
         <TonConnectButton />
       </div>
-      {error && (
-        <p className="error" style={{ color: "red" }}>
-          {error}
-        </p>
-      )}
-      <div
-        className="donationTiles"
-        style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}
-      >
+      {error && <p className="error">{error}</p>}
+      <div className="donationTiles">
         {donationOptions.map((option, index) => (
-          <div
-            key={index}
-            className="donationTile"
-            style={{
-              border: "1px solid #ccc",
-              padding: "10px",
-              borderRadius: "5px",
-            }}
-          >
+          <div key={index} className="donationTile">
             <p>
-              {option.gold} Gold for {option.amount} {option.currency}
+              {option.gold} золота за {option.amount} {option.currency}
             </p>
             <button
               className="donateBtn"
               onClick={() => handleDonate(option)}
               disabled={!tonConnectUI.connected}
             >
-              Donate
+              Пополнить
             </button>
           </div>
         ))}
       </div>
       <button className="closeBtn" onClick={onClose}>
-        Close
+        Закрыть
       </button>
     </div>
   );
