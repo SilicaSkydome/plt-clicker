@@ -33,18 +33,18 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
   const handleDonate = async (option: DonationOption) => {
     try {
       if (!tonConnectUI.connected) {
-        setError("Подключите кошелёк");
+        setError("Connect your wallet");
         return;
       }
 
-      let address = "UQBPyg8CUlZj-awtwD0gvYPU1M2g8CxkJ6QcSAzNbxEzJ1H5"; // Твой кошелёк для TON
+      let address = "UQBPyg8CUlZj-awtwD0gvYPU1M2g8CxkJ6QcSAzNbxEzJ1H5"; // Your TON wallet
       let amount = (option.amount * 1e9).toString(); // TON: 9 decimals
       let payload: string | undefined = undefined;
 
       if (option.currency === "USDT") {
-        address = "EQCxE6mUtQJKFnGfaROTKOt1lzbY6CpTq3ppB4-CgH9B_wkZ"; // USDT смарт-контракт
-        amount = "10000000"; // Минимальный TON для комиссии (0.01 TON), вместо USDT-суммы
-        payload = undefined; // Временно убираем payload
+        address = "EQCxE6mUtQJKFnGfaROTKOt1lzbY6CpTq3ppB4-CgH9B_wkZ"; // USDT smart contract
+        amount = "10000000"; // Minimum TON for fee (0.01 TON), instead of USDT amount
+        payload = undefined; // Temporarily remove payload
       }
 
       const transaction = {
@@ -58,27 +58,27 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
         ],
       };
 
-      console.log("Отправка транзакции:", transaction);
+      console.log("Sending transaction:", transaction);
       await tonConnectUI.sendTransaction(transaction);
 
       dispatch(updateBalance(balance + option.gold));
       console.log(
-        `Добавлено ${option.gold} золота за ${option.amount} ${option.currency}`
+        `Added ${option.gold} gold for ${option.amount} ${option.currency}`
       );
       alert(
-        `Успешно отправлено ${option.amount} ${option.currency}! Добавлено ${option.gold} золота.`
+        `Successfully sent ${option.amount} ${option.currency}! Added ${option.gold} gold.`
       );
       setError(null);
     } catch (error) {
-      console.error("Ошибка транзакции:", error);
-      setError(`Ошибка при отправке: ${(error as Error).message}`);
+      console.error("Transaction error:", error);
+      setError(`Error while sending: ${(error as Error).message}`);
     }
   };
 
   return (
     <div className="bankModal" ref={ref}>
-      <h2>Пополнить золото</h2>
-      <p className="walletBalance">Текущий баланс: {formatBalance(balance)}</p>
+      <h2>Top up gold</h2>
+      <p className="walletBalance">Current balance: {formatBalance(balance)}</p>
       <div className="bankModalField">
         <TonConnectButton />
       </div>
@@ -87,20 +87,20 @@ const BankModal: React.FC<Props> = ({ onClose, ref }) => {
         {donationOptions.map((option, index) => (
           <div key={index} className="donationTile">
             <p>
-              {option.gold} золота за {option.amount} {option.currency}
+              {option.gold} gold for {option.amount} {option.currency}
             </p>
             <button
               className="donateBtn"
               onClick={() => handleDonate(option)}
               disabled={!tonConnectUI.connected}
             >
-              Пополнить
+              Top up
             </button>
           </div>
         ))}
       </div>
       <button className="closeBtn" onClick={onClose}>
-        Закрыть
+        Close
       </button>
     </div>
   );
